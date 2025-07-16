@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Volatility Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .price-change.positive {
+        .price-trend {
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        .volatility-value {
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">Crypto Fluctuation Analyzer</h1>
+                <p class="lead">Find coins with the most frequent tradable swings (≤ 20% max swing, ideal for dip buying and rip selling)</p>
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12 text-center">
+                <button id="analyze-btn" class="btn btn-primary btn-lg">Analyze Coins</button>
+            </div>
+        </div>
+        <div id="loading" class="text-center mb-4" style="display:none;">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <div id="error" class="alert alert-danger" style="display:none;"></div>
+        <div id="results" style="display:none;">
+            <h3 class="mb-3">Top 10 Coins with Least Volatility (Past 7 Days)</h3>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Symbol</th>
+                        <th>Current Price</th>
+                        <th>Fluctuations</th>
+                        <th>Max Swing (%)</th>
+                    </tr>
+                </thead>
+                <tbody id="coin-table-body">
+    <!-- Table rows will be dynamically inserted here -->
+</tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('analyze-btn').onclick = async function() {
+            document.getElementById('loading').style.display = '';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('error').style.display = 'none';
+            try {
+                const resp = await fetch('/analyze');
+                const data = await resp.json();
+                console.log("Fetched data from /analyze:", data);
+                document.getElementById('loading').style.display = 'none';
+                if (data.status === 'success') {
+                    const tbody = document.getElementById('coin-table-body');
+                    if (data.data.length === 0) {
+                        tbody.innerHTML = `
+                            <tr>
+                                <td colspan="5" class="text-center">No coins found matching your criteria.</td>
+                            </tr>
+                        `;
+                    } else {
+                        tbody.innerHTML = '';
+                        data.data.forEach(coin => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${coin.name}</td>
+                                    <td>${coin.symbol.toUpperCase()}</td>
+                                    <td>$${coin.current_price.toFixed(2)}</td>
+                                    <td>${coin.fluctuations}</td>
+                                    <td>${coin.max_swing.toFixed(2)}%</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                    document.getElementById('results').style.display = '';
+                } else {
+                    console.log("Error status from backend:", data);
+                    document.getElementById('error').innerText = data.message || 'Error retrieving data.';
+                    document.getElementById('error').style.display = '';
+                }
+            } catch (e) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').innerText = 'Failed to fetch data. ' + e;
+                document.getElementById('error').style.display = '';
+                console.error("JS fetch error:", e);
+            }
+        };
+    </script>
+</body>
+</html>
