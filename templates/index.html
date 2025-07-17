@@ -6,34 +6,141 @@
     <title>Crypto Volatility Analyzer</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        .card {
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        body {
+            background: #10131a;
+            color: #e0e6ed;
+            font-family: 'Roboto Mono', 'Orbitron', monospace, Arial, sans-serif;
+            min-height: 100vh;
         }
-        .price-change.positive {
-        .price-trend {
-            height: 300px;
-            margin-bottom: 20px;
+        .container {
+            background: rgba(24, 27, 39, 0.98);
+            border-radius: 18px;
+            box-shadow: 0 0 24px #0ff6fc33, 0 0 1px #0ff6fc99;
+            padding: 2.5rem 2rem 2rem 2rem;
+        }
+        h1, .lead {
+            font-family: 'Orbitron', 'Roboto Mono', monospace;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px #00fff7, 0 0 2px #0ff6fc;
+        }
+        h1 {
+            color: #00fff7;
+            font-weight: 700;
+        }
+        .lead {
+            color: #7ef9f7;
+            font-size: 1.25rem;
+        }
+        label, .form-label {
+            color: #92e3ff;
+            font-weight: 500;
+        }
+        .form-control {
+            background: #23273a;
+            border: 1px solid #00fff7;
+            color: #e0e6ed;
+        }
+        .form-control:focus {
+            border-color: #00fff7;
+            box-shadow: 0 0 8px #00fff7;
+            background: #23273a;
+            color: #fff;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #00fff7 0%, #0ff6fc 100%);
+            border: none;
+            color: #10131a;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            letter-spacing: 1px;
+            box-shadow: 0 0 8px #00fff7, 0 0 4px #0ff6fc;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover, .btn-primary:focus {
+            background: linear-gradient(90deg, #0ff6fc 0%, #00fff7 100%);
+            color: #10131a;
+            box-shadow: 0 0 16px #00fff7, 0 0 8px #0ff6fc;
+        }
+        .table {
+            background: #181b27;
+            color: #e0e6ed;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 0 12px #00fff733;
+        }
+        .table thead {
+            background: #23273a;
+        }
+        .table th, .table td {
+            border-color: #23273a;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background: #141820;
+        }
+        .table-striped tbody tr:nth-of-type(even) {
+            background: #181b27;
+        }
+        .spinner-border {
+            color: #00fff7;
+        }
+        .alert-danger {
+            background: #2a1a1a;
+            color: #ffb3b3;
+            border: 1px solid #ff5252;
         }
         .volatility-value {
             font-weight: bold;
-            color: #28a745;
+            color: #00fff7;
+            text-shadow: 0 0 4px #00fff7;
+        }
+        ::selection {
+            background: #00fff7;
+            color: #10131a;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem 0.5rem 1rem 0.5rem;
+            }
+            h1 {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
-<body>
+<body class="bg-dark">
     <div class="container mt-5">
         <div class="row">
             <div class="col-12">
                 <h1 class="mb-4">Crypto Fluctuation Analyzer</h1>
-                <p class="lead">Find coins with the most frequent tradable swings (≤ 20% max swing, ideal for dip buying and rip selling)</p>
+                <div class="d-flex justify-content-center align-items-center my-3">
+                    <div style="height:4px; width:60px; background:linear-gradient(90deg,#00fff7,#0ff6fc); border-radius:2px; box-shadow:0 0 8px #00fff7;"></div>
+                </div>
+                <div style="height:28px;"></div>
+                <p class="lead text-center">Find coins with the most frequent tradable swings <span style="font-size:0.95em;">(Ideal for dip buying and rip selling)</span></p>
             </div>
         </div>
 
-        <div class="row mb-4">
-            <div class="col-12 text-center">
-                <button id="analyze-btn" class="btn btn-primary btn-lg">Analyze Coins</button>
+        <div class="d-flex flex-row flex-wrap justify-content-center align-items-end gap-4 mb-4 text-center">
+            <div class="d-flex flex-column align-items-center">
+                <label for="max-swing" class="form-label">Max Swing (%)</label>
+                <input type="number" id="max-swing" class="form-control text-center" value="30" min="1" step="0.1" style="min-width:150px;">
+            </div>
+            <div class="d-flex flex-column align-items-center">
+                <label for="fluct-threshold" class="form-label" style="display:flex; align-items:center; justify-content:center; gap:4px;">
+                  <span>Fluctuation Threshold</span>
+                  <span style="white-space:nowrap">(%)</span>
+                </label>
+                <input type="number" id="fluct-threshold" class="form-control text-center" value="20" min="0.1" step="0.1" style="min-width:150px;">
+            </div>
+        </div>
+        <div class="mb-4"></div>
+        <div class="row justify-content-center text-center">
+            <div class="col-md-4 d-flex align-items-end justify-content-center">
+                <button id="analyze-btn" class="btn btn-primary btn-lg w-100">Analyze Coins</button>
             </div>
         </div>
         <div id="loading" class="text-center mb-4" style="display:none;">
@@ -42,22 +149,26 @@
             </div>
         </div>
         <div id="error" class="alert alert-danger" style="display:none;"></div>
-        <div id="results" style="display:none;">
-            <h3 class="mb-3">Top 10 Coins with Least Volatility (Past 7 Days)</h3>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Symbol</th>
-                        <th>Current Price</th>
-                        <th>Fluctuations</th>
-                        <th>Max Swing (%)</th>
-                    </tr>
-                </thead>
-                <tbody id="coin-table-body">
-    <!-- Table rows will be dynamically inserted here -->
-</tbody>
-            </table>
+        <div id="results" class="text-center w-100 mx-auto" style="display:none;">
+            <h3 class="mb-3" style="color:#00fff7; text-shadow:0 0 8px #00fff7; font-family:'Orbitron',monospace;">Top 10 Coins with Least Volatility (Past 7 Days)</h3>
+            <div class="d-flex justify-content-center">
+                <table class="table table-striped w-auto" style="margin:0 auto; box-shadow:0 0 16px #00fff7;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Symbol</th>
+                            <th>Current Price</th>
+                            <th>Fluctuations</th>
+                            <th>Max Swing (%)</th>
+                            <th>High</th>
+                            <th>Low</th>
+                        </tr>
+                    </thead>
+                    <tbody id="coin-table-body">
+        <!-- Table rows will be dynamically inserted here -->
+    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -67,7 +178,9 @@
             document.getElementById('results').style.display = 'none';
             document.getElementById('error').style.display = 'none';
             try {
-                const resp = await fetch('/analyze');
+                const maxSwing = document.getElementById('max-swing').value;
+const fluctThreshold = document.getElementById('fluct-threshold').value;
+const resp = await fetch(`/analyze?max_swing=${encodeURIComponent(maxSwing)}&fluct_threshold=${encodeURIComponent(fluctThreshold)}`);
                 const data = await resp.json();
                 console.log("Fetched data from /analyze:", data);
                 document.getElementById('loading').style.display = 'none';
@@ -89,6 +202,8 @@
                                     <td>$${coin.current_price.toFixed(2)}</td>
                                     <td>${coin.fluctuations}</td>
                                     <td>${coin.max_swing.toFixed(2)}%</td>
+                                    <td>$${coin.high ? coin.high.toFixed(2) : '-'}</td>
+                                    <td>$${coin.low ? coin.low.toFixed(2) : '-'}</td>
                                 </tr>
                             `;
                         });
