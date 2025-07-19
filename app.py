@@ -33,13 +33,18 @@ from flask import request
 
 @app.route('/analyze')
 def analyze():
+    print(">>> /analyze route called")
     try:
         now = time.time()
-        # Get thresholds from query params (with defaults)
-        max_swing = float(request.args.get('max_swing', 20))
-        fluct_threshold = float(request.args.get('fluct_threshold', 2))
+        # Get thresholds from query params (None if not provided)
+        max_swing = request.args.get('max_swing')
+        fluct_threshold = request.args.get('fluct_threshold')
+        coin_type = request.args.get('coin_type', 'all')
+        # Convert to float if provided
+        max_swing = float(max_swing) if max_swing is not None else None
+        fluct_threshold = float(fluct_threshold) if fluct_threshold is not None else None
         # Return cached data if it's still valid and params haven't changed
-        cache_key = f"{max_swing}-{fluct_threshold}"
+        cache_key = f"{max_swing}-{fluct_threshold}-{coin_type}"
         if analyze_cache.get('data') and analyze_cache.get('params') == cache_key and now - analyze_cache['timestamp'] < CACHE_DURATION:
             print("Serving /analyze from cache.")
             return jsonify(analyze_cache['data'])
@@ -50,12 +55,12 @@ def analyze():
             analyze_cache['timestamp'] = now
             analyze_cache['params'] = cache_key
             return jsonify(result)
-        fluctuation_data = analyze_fluctuations(coins, max_swing=max_swing, fluct_threshold=fluct_threshold)
-        result = {"status": "success", "data": fluctuation_data}
-        analyze_cache['data'] = result
-        analyze_cache['timestamp'] = now
-        analyze_cache['params'] = cache_key
-        return jsonify(result)
+
+        # Use enhanced analysis from crypto_volatility.py
+        from crypto_volatility import analyze as enhanced_analyze
+        with app.app_context():
+            response = enhanced_analyze()
+        return response
     except Exception as e:
         import traceback
         print(traceback.format_exc())
@@ -64,50 +69,81 @@ def analyze():
         analyze_cache['timestamp'] = time.time()
         return jsonify(result)
 
-def analyze_fluctuations(coins, max_swing=20, fluct_threshold=2):
+progress_cache = {'messages': []}
+
+def analyze_fluctuations(coins, max_swing=None, fluct_threshold=None):
+    import math
     fluctuation_data = []
     if not isinstance(coins, list):
         print("analyze_fluctuations: coins is not a list!", type(coins))
         return []
-    print(f"Fetched {len(coins)} coins from API.")
+    progress_cache['messages'] = []
+    progress_cache['messages'].append(f"Fetched {len(coins)} coins from API.")
     filtered = 0
     skipped = 0
-    # WARNING: This will take 50+ seconds for 100 coins due to API rate limits
-    for coin in coins:
-        try:
-            price_data = get_historical_prices(coin['id'])
-            if len(price_data) < 2:
-                skipped += 1
+    RATE_LIMIT = 29  # CoinGecko free tier: 30/min, use 29 to be safe
+    total = len(coins)
+    num_batches = math.ceil(total / RATE_LIMIT)
+    for batch_idx in range(num_batches):
+        start = batch_idx * RATE_LIMIT
+        end = min((batch_idx + 1) * RATE_LIMIT, total)
+        batch = coins[start:end]
+        msg = f"Processing batch {batch_idx+1}/{num_batches}: coins {start+1}-{end} of {total}"
+        print(msg)
+        progress_cache['messages'].append(msg)
+        for coin in batch:
+            try:
+                price_data = get_historical_prices(coin['id'])
+                if len(price_data) < 2:
+                    skipped += 1
+                    continue
+                prices = [p['price'] for p in price_data]
+                min_price = min(prices)
+                max_price = max(prices)
+                swing = (max_price - min_price) / min_price * 100
+                if max_swing is not None and swing > max_swing:
+                    skipped += 1
+                    continue
+                fluct_count = 0
+                for i in range(1, len(prices)):
+                    pct_change = abs(prices[i] - prices[i-1]) / prices[i-1] * 100
+                    if fluct_threshold is not None:
+                        if pct_change >= fluct_threshold:
+                            fluct_count += 1
+                    else:
+                        if pct_change:
+                            fluct_count += 1
+                fluctuation_data.append({
+                    'name': coin['name'],
+                    'symbol': coin['symbol'],
+                    'current_price': coin['current_price'],
+                    'fluctuations': fluct_count,
+                    'max_swing': max_swing,
+                    'high': max_price,
+                    'low': min_price,
+                    'market_cap': coin['market_cap']
+                })
+            except Exception as e:
+                print(f"Error processing {coin['name']}: {str(e)}")
+                progress_cache['messages'].append(f"Error processing {coin['name']}: {str(e)}")
                 continue
-            prices = [p['price'] for p in price_data]
-            min_price = min(prices)
-            max_price = max(prices)
-            swing = (max_price - min_price) / min_price * 100
-            if swing > max_swing:
-                skipped += 1
-                continue
-            fluct_count = 0
-            for i in range(1, len(prices)):
-                pct_change = abs(prices[i] - prices[i-1]) / prices[i-1] * 100
-                if pct_change >= fluct_threshold:
-                    fluct_count += 1
-            fluctuation_data.append({
-                'name': coin['name'],
-                'symbol': coin['symbol'],
-                'current_price': coin['current_price'],
-                'fluctuations': fluct_count,
-                'max_swing': max_swing,
-                'high': max_price,
-                'low': min_price,
-                'market_cap': coin['market_cap']
-            })
-            time.sleep(0)  # Reduced delay to minimum (0 seconds)
-        except Exception as e:
-            print(f"Error processing {coin['name']}: {str(e)}")
-            continue
+        if batch_idx < num_batches - 1:
+            msg = f"Sleeping for 1 second to respect CoinGecko rate limits..."
+            print(msg)
+            progress_cache['messages'].append(msg)
+            time.sleep(1)
     fluctuation_data.sort(key=lambda x: x['fluctuations'], reverse=True)
-    print(f"Filtered {len(fluctuation_data)} coins, skipped {skipped}.")
+    msg = f"Filtered {len(fluctuation_data)} coins, skipped {skipped}."
+    print(msg)
+    progress_cache['messages'].append(msg)
     return fluctuation_data
+
+from flask import jsonify
+
+@app.route('/analyze_progress')
+def analyze_progress():
+    return jsonify({'messages': progress_cache.get('messages', [])})
+
 
 def get_top_coins():
     # Fetch top 100 coins by market cap from CoinGecko
@@ -120,11 +156,19 @@ def get_top_coins():
             'page': 1,
             'price_change_percentage': '24h'
         }
+        print(f"[CoinGecko] Fetching top coins: {url} params={params}")
         resp = requests.get(url, params=params, timeout=10)
-        resp.raise_for_status()
-        return resp.json()
+        print(f"[CoinGecko] Status: {resp.status_code}")
+        if resp.status_code != 200:
+            print(f"[CoinGecko] Error: {resp.text}")
+            return []
+        data = resp.json()
+        if not data:
+            print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
+        return data
     except Exception as e:
         print(f"Error fetching top coins: {e}")
+        return []
         return []
 
 def get_historical_prices(coin_id):
@@ -178,6 +222,80 @@ def calculate_volatility(price_data):
     volatility_data.sort(key=lambda x: x['volatility'])
     
     return volatility_data
+
+# Placeholder for fetching moonshot coins from the Moonshot Crypto app
+# Replace this with your actual API call or data source
+
+def fetch_moonshot_coins():
+    """
+    Fetch moonshot coins using the Dexscreener public API.
+    We define 'moonshot' as new/low market cap coins (<$1M) on popular chains.
+    """
+    import requests
+    import time
+    chains = ['solana', 'bsc', 'eth', 'base']
+    moonshots = []
+    for chain in chains:
+        url = f'https://api.dexscreener.com/latest/dex/pairs/{chain}'
+        try:
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            pairs = data.get('pairs', [])
+            for p in pairs:
+                # Filter for low market cap (< $1M) and recent pairs (created in last ~7 days)
+                market_cap = p.get('fdv', 0) or 0
+                if market_cap is None or market_cap > 1_000_000:
+                    continue
+                # Dexscreener provides 'pairCreatedAt' as a timestamp (ms)
+                created_ts = p.get('pairCreatedAt', 0)
+                if created_ts:
+                    age_days = (time.time() - int(created_ts)/1000) / 86400
+                    if age_days > 7:
+                        continue
+                moonshots.append({
+                    'name': p.get('baseToken', {}).get('name', ''),
+                    'symbol': p.get('baseToken', {}).get('symbol', ''),
+                    'current_price': float(p.get('priceUsd', 0) or 0),
+                    'fluctuations': 0,  # Not available
+                    'max_swing': 0,     # Not available
+                    'high': 0,          # Not available
+                    'low': 0,           # Not available
+                    'market_cap': market_cap,
+                })
+        except Exception as e:
+            print(f'Error fetching Dexscreener {chain}: {e}')
+            continue
+    # Sort by most recent, then by lowest market cap
+    moonshots.sort(key=lambda x: (x['market_cap'],), reverse=False)
+    # Limit to top 50
+    return moonshots[:50]
+
+
+@app.route('/price_history')
+def price_history():
+    coin_id = request.args.get('coin_id')
+    days = request.args.get('days', 7)
+    if not coin_id:
+        return jsonify({'status': 'error', 'message': 'Missing coin_id'}), 400
+    try:
+        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+        params = {'vs_currency': 'usd', 'days': days}
+        resp = requests.get(url, params=params, timeout=10)
+        if resp.status_code == 429:
+            print(f"[ERROR] CoinGecko rate limit hit for coin_id={coin_id}, days={days}")
+            return jsonify({'status': 'error', 'message': 'CoinGecko API rate limit reached (429). Please wait and try again.'}), 429
+        try:
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"[ERROR] CoinGecko API error for coin_id={coin_id}, days={days}: {e}")
+            return jsonify({'status': 'error', 'message': f'CoinGecko API error: {str(e)}'}), resp.status_code
+        data = resp.json()
+        prices = data.get('prices', [])
+        return jsonify({'status': 'success', 'prices': prices})
+    except Exception as e:
+        print(f"[ERROR] Backend exception in /price_history for coin_id={coin_id}, days={days}: {e}")
+        return jsonify({'status': 'error', 'message': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)

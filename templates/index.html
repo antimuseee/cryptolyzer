@@ -9,72 +9,96 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
-            background: #10131a;
-            color: #e0e6ed;
+            background: #1a102a;
+            color: #f2e9ff;
             font-family: 'Roboto Mono', 'Orbitron', monospace, Arial, sans-serif;
             min-height: 100vh;
         }
         .container {
             background: rgba(24, 27, 39, 0.98);
             border-radius: 18px;
-            box-shadow: 0 0 24px #0ff6fc33, 0 0 1px #0ff6fc99;
+            box-shadow: 0 0 24px #a259ff33, 0 0 1px #a259ff99, 0 0 0 4px #00fff7;
             padding: 2.5rem 2rem 2rem 2rem;
+            position: relative;
         }
-        h1, .lead {
-            font-family: 'Orbitron', 'Roboto Mono', monospace;
-            letter-spacing: 2px;
-            text-shadow: 0 0 8px #00fff7, 0 0 2px #0ff6fc;
-        }
+        h1, .lead, h2, h3, h4, h5, h6, p {
+    text-shadow:
+        0 0 0.5px #00fff7, /* thin blue outline */
+        0 0 6px #d200ff, 0 0 2px #a259ff, /* existing neon purple/pink */
+        0 0 4px #00fff7cc, 0 0 2px #00fff7cc; /* more subtle blue glow */
+}
+h1, .lead {
+    font-family: 'Orbitron', 'Roboto Mono', monospace;
+    letter-spacing: 2px;
+}
+
         h1 {
-            color: #00fff7;
+            color: #d200ff;
             font-weight: 700;
         }
         .lead {
-            color: #7ef9f7;
+            color: #f725ff;
             font-size: 1.25rem;
         }
         label, .form-label {
-            color: #92e3ff;
+            color: #f725ff;
             font-weight: 500;
         }
         .form-control {
-            background: #23273a;
-            border: 1px solid #00fff7;
-            color: #e0e6ed;
+            background: #3d155f;
+            border: 2px solid transparent;
+border-image: linear-gradient(180deg, #d200ff 0%, #00fff7 100%);
+border-image-slice: 1; 
+            box-shadow: 0 0 8px #d200ff, 0 0 16px #00fff7;
+            color: #f2e9ff;
         }
         .form-control:focus {
-            border-color: #00fff7;
-            box-shadow: 0 0 8px #00fff7;
-            background: #23273a;
+            border-color: #d200ff; 
+            box-shadow: 0 0 8px #d200ff, 0 0 0 2px #00fff7;
+            background: #3d155f;
             color: #fff;
         }
-        .btn-primary {
-            background: linear-gradient(90deg, #00fff7 0%, #0ff6fc 100%);
+        #analyze-btn {
+            opacity: 0.8;
+            background: linear-gradient(90deg, #d200ff 0%, #a259ff 100%);
             border: none;
-            color: #10131a;
+            color: #1a102a;
             font-family: 'Orbitron', monospace;
             font-weight: 700;
             letter-spacing: 1px;
-            box-shadow: 0 0 8px #00fff7, 0 0 4px #0ff6fc;
+            box-shadow: 0 0 8px #d200ff, 0 0 4px #a259ff, 0 0 0 3px #00fff7;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        #max-swing, #fluct-threshold {
+            opacity: 0.8;
+        }
+        .btn-primary {
+            background: linear-gradient(90deg, #d200ff 0%, #a259ff 100%);
+            border: none;
+            color: #1a102a;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            letter-spacing: 1px;
+            box-shadow: 0 0 8px #d200ff, 0 0 4px #a259ff, 0 0 0 3px #00fff7;
             transition: background 0.2s, color 0.2s, box-shadow 0.2s;
         }
         .btn-primary:hover, .btn-primary:focus {
-            background: linear-gradient(90deg, #0ff6fc 0%, #00fff7 100%);
-            color: #10131a;
-            box-shadow: 0 0 16px #00fff7, 0 0 8px #0ff6fc;
+            background: linear-gradient(90deg, #a259ff 0%, #d200ff 100%);
+            color: #1a102a;
+            box-shadow: 0 0 16px #d200ff, 0 0 8px #a259ff, 0 0 0 3px #00fff7;
         }
         .table {
-            background: #181b27;
-            color: #e0e6ed;
+            background: #25003e;
+            color: #f2e9ff;
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 0 12px #00fff733;
+            box-shadow: 0 0 12px #d200ff33, 0 0 0 2px #00fff7;
         }
         .table thead {
-            background: #23273a;
+            background: #3d155f;
         }
         .table th, .table td {
-            border-color: #23273a;
+            border-color: #3d155f;
             text-align: center;
             vertical-align: middle;
         }
@@ -82,10 +106,10 @@
             background: #141820;
         }
         .table-striped tbody tr:nth-of-type(even) {
-            background: #181b27;
+            background: #25003e;
         }
         .spinner-border {
-            color: #00fff7;
+            color: #d200ff;
         }
         .alert-danger {
             background: #2a1a1a;
@@ -94,12 +118,12 @@
         }
         .volatility-value {
             font-weight: bold;
-            color: #00fff7;
-            text-shadow: 0 0 4px #00fff7;
+            color: #d200ff;
+            text-shadow: 0 0 4px #d200ff;
         }
         ::selection {
-            background: #00fff7;
-            color: #10131a;
+            background: #d200ff;
+            color: #1a102a;
         }
         @media (max-width: 600px) {
             .container {
@@ -109,81 +133,225 @@
                 font-size: 2rem;
             }
         }
+        /* Progress bar container and squares */
+        #progress-bar-container {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            min-height: 32px;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+        .progress-square {
+    animation: progress-pulse 1.2s infinite alternate;
+
+            width: 32px;
+            height: 22px;
+            background: #3d155f;
+            border: 2px solid #d200ff;
+            border-radius: 5px;
+            transition: background 0.5s, box-shadow 0.5s;
+            box-shadow: 0 0 6px #d200ff33;
+        }
+        @keyframes progress-pulse {
+            0% { box-shadow: 0 0 6px #d200ff33, 0 0 0 #00fff7; filter: brightness(1); }
+            100% { box-shadow: 0 0 16px #d200ff, 0 0 8px #00fff7; filter: brightness(1.2); }
+        }
+        .progress-square.filled {
+            animation: none;
+            background: linear-gradient(90deg, #d200ff 0%, #00fff7 100%);
+            box-shadow: 0 0 12px #d200ff, 0 0 24px #00fff7;
+            border: 2px solid #00fff7;
+            transition: background 0.4s, box-shadow 0.4s, border 0.4s;
+        }
+        .form-switch .form-check-input {
+            width: 2.6em;
+            height: 1.3em;
+            background-color: #2a1a3a;
+            border: 2px solid #a259ff;
+            box-shadow: 0 0 4px #d200ff99;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .form-switch .form-check-input:checked {
+            background-color: #00fff7;
+            border-color: #00fff7;
+            box-shadow: 0 0 8px #00fff7cc;
+        }
+        .form-switch .form-check-input:not(:checked) {
+            background-color: #2a1a3a;
+            border-color: #a259ff;
+            box-shadow: 0 0 4px #d200ff99;
+        }
+        .form-switch .form-check-input:focus {
+            box-shadow: 0 0 0 2px #d200ff, 0 0 8px #00fff7;
+        }
+        .form-switch .form-check-input:after {
+            background: #fff;
+            border-radius: 50%;
+        }
     </style>
+<style>
+    .custom-tooltip-card {
+        pointer-events: none;
+        transition: opacity 0.2s;
+    }
+    #coin-table-body {
+        opacity: 1;
+    }
+</style>
 </head>
 <body class="bg-dark">
-    <div class="container mt-5">
-        <div class="row">
-            <div class="col-12">
-                <h1 class="mb-4">Crypto Fluctuation Analyzer</h1>
+    <div class="container mt-2">
+    <div class="row mb-3">
+        <div class="col-12 d-flex justify-content-end">
+            <div class="input-group" style="max-width: 260px; display:none;">
+                <label class="input-group-text bg-dark text-info border-info" for="coin-type-switcher"><i class="bi bi-rocket-takeoff"></i> Coin Type</label>
+                <select class="form-select bg-dark text-light border-info" id="coin-type-switcher">
+                    <option value="all">Coingecko Top 100</option>
+                    <option value="moonshot">Moonshot Coins</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4 text-center" style="width:100%;">Cryptolyzer</h1>
                 <div class="d-flex justify-content-center align-items-center my-3">
-                    <div style="height:4px; width:60px; background:linear-gradient(90deg,#00fff7,#0ff6fc); border-radius:2px; box-shadow:0 0 8px #00fff7;"></div>
+                    <div style="height:4px; width:60px; background:linear-gradient(90deg,#d200ff,#a259ff); border-radius:2px; box-shadow:0 0 8px #d200ff, 0 0 0 2px #00fff7;"></div>
                 </div>
-                <div style="height:28px;"></div>
-                <p class="lead text-center">Find coins with the most frequent tradable swings <span style="font-size:0.95em;">(Ideal for dip buying and rip selling)</span></p>
+                <div style="height:8px;"></div>
+                <p class="lead text-center mb-0">Cryptocoin Analyzer</p>
+<p class="lead text-center mt-1" style="font-size:1.1rem;">Make more informed trades!</p>
             </div>
         </div>
 
-        <div class="d-flex flex-row flex-wrap justify-content-center align-items-end gap-4 mb-4 text-center">
-            <div class="d-flex flex-column align-items-center">
-                <label for="max-swing" class="form-label">Max Swing (%)</label>
-                <input type="number" id="max-swing" class="form-control text-center" value="30" min="1" step="0.1" style="min-width:150px;">
-            </div>
-            <div class="d-flex flex-column align-items-center">
-                <label for="fluct-threshold" class="form-label" style="display:flex; align-items:center; justify-content:center; gap:4px;">
-                  <span>Fluctuation Threshold</span>
-                  <span style="white-space:nowrap">(%)</span>
-                </label>
-                <input type="number" id="fluct-threshold" class="form-control text-center" value="20" min="0.1" step="0.1" style="min-width:150px;">
-            </div>
-        </div>
+        <div class="d-flex flex-row flex-wrap justify-content-center align-items-center gap-4 mb-4 text-center mx-auto" style="width: fit-content;">
+    <div class="d-flex flex-column align-items-center">
+    <div class="form-check form-switch mb-2" style="width:100%;">
+        <input class="form-check-input" type="checkbox" id="max-swing-toggle">
+        <label class="form-check-label" for="max-swing-toggle" style="opacity:0.8;">Enable Max Swing</label>
+    </div>
+    <input type="number" id="max-swing" class="form-control text-center" value="30" min="1" step="0.1" style="min-width:150px;">
+</div>
+    <div class="d-flex flex-column align-items-center">
+    <div class="form-check form-switch mb-2" style="width:100%;">
+        <input class="form-check-input" type="checkbox" id="fluct-threshold-toggle">
+        <label class="form-check-label" for="fluct-threshold-toggle" style="opacity:0.8; margin-left: 16px;">Enable Fluctuation Threshold</label>
+    </div>
+    <input type="number" id="fluct-threshold" class="form-control text-center" value="10" min="0.1" step="0.1" style="min-width:150px;">
+</div>
+</div>
         <div class="mb-4"></div>
         <div class="row justify-content-center text-center">
             <div class="col-md-4 d-flex align-items-end justify-content-center">
                 <button id="analyze-btn" class="btn btn-primary btn-lg w-100">Analyze Coins</button>
             </div>
         </div>
-        <div id="loading" class="text-center mb-4" style="display:none;">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-        </div>
-        <div id="error" class="alert alert-danger" style="display:none;"></div>
-        <div id="results" class="text-center w-100 mx-auto" style="display:none;">
-            <h3 class="mb-3" style="color:#00fff7; text-shadow:0 0 8px #00fff7; font-family:'Orbitron',monospace;">Top 10 Coins with Least Volatility (Past 7 Days)</h3>
-            <div class="d-flex justify-content-center">
-                <table class="table table-striped w-auto" style="margin:0 auto; box-shadow:0 0 16px #00fff7;">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Symbol</th>
-                            <th>Current Price</th>
-                            <th>Fluctuations</th>
-                            <th>Max Swing (%)</th>
-                            <th>High</th>
-                            <th>Low</th>
-                        </tr>
-                    </thead>
-                    <tbody id="coin-table-body">
-        <!-- Table rows will be dynamically inserted here -->
-    </tbody>
-                </table>
-            </div>
-        </div>
+        <div id="loading" class="text-center" style="display:none;">
+    <div style="margin-top: 8px;"></div>
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
     </div>
+</div>
+        <div id="progress-bar-row" class="d-flex justify-content-center align-items-center" style="display:none; gap: 18px;">
+    <div class="d-flex flex-column align-items-center w-100">
+    <div id="progress-bar-container" class="mb-2 mt-2"></div>
+    <span id="progress-bar-loading-text" style="font-family: 'Orbitron', monospace; color: #00fff7; text-shadow: 0 0 4px #d200ff, 0 0 8px #00fff7; font-size: 1.1rem; letter-spacing: 1px; display:none;">Loading...</span>
+</div>
+</div>        </div>
+        <div id="error" class="alert alert-danger" style="display:none;"></div>
+        <div id="results" class="text-center w-100 mx-auto" style="display:none; margin-top: 2.5rem;">
+            
+            <div class="d-flex justify-content-center">
+                <table class="table table-striped w-auto" style="margin:0 auto; box-shadow:0 0 16px #d200ff;">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Symbol</th>
+            <th>Price</th>
+            <th>Trend</th>
+            <th>Breakout</th>
+            <th>Opportunity Score</th>
+            <th>Details</th>
+            <th>Graph</th>
+        </tr>
+    </thead>
+    <tbody id="coin-table-body">
+    </tbody>
+
+</script>
 
     <script>
         document.getElementById('analyze-btn').onclick = async function() {
-            document.getElementById('loading').style.display = '';
-            document.getElementById('results').style.display = 'none';
-            document.getElementById('error').style.display = 'none';
-            try {
+    const analyzeBtn = document.getElementById('analyze-btn');
+    analyzeBtn.textContent = 'Analyzing Coins...';
+    analyzeBtn.disabled = true;
+    document.getElementById('loading').style.display = '';
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('error').style.display = 'none';
+    // Show loading text under the progress bar
+    document.getElementById('progress-bar-loading-text').style.display = '';
+    // --- Visual batch loading bar ---
+    const progressBarRow = document.getElementById('progress-bar-row');
+            const progressBarLoadingText = document.getElementById('progress-bar-loading-text');
+            progressBarRow.style.display = 'flex';
+            progressBarLoadingText.style.display = '';
+            const progressBar = document.getElementById('progress-bar-container');
+            progressBar.innerHTML = '';
+            progressBar.style.display = 'flex'; // ensure flex is re-applied if hidden
+            // Estimate number of coins to analyze (from coin type selection)
+            let totalCoins = 100;
+            const coinType = document.getElementById('coin-type-switcher').value;
+            if (coinType === 'moonshot') totalCoins = 50; // adjust if needed
+            const BATCH_SIZE = 29;
+            const totalBatches = Math.ceil(totalCoins / BATCH_SIZE);
+            // Create squares
+            for (let i = 0; i < totalBatches; i++) {
+                const sq = document.createElement('div');
+                sq.className = 'progress-square';
+                sq.style.width = '32px';
+                sq.style.height = '22px';
+                sq.style.background = '#3d155f';
+                sq.style.border = '2px solid #d200ff';
+                sq.style.borderRadius = '5px';
+                sq.style.transition = 'background 0.5s, box-shadow 0.5s';
+                progressBar.appendChild(sq);
+            }
+            let currentBatch = 0;
+            function fillSquare(idx) {
+    const sq = progressBar.children[idx];
+    if (sq) {
+        sq.classList.add('filled');
+    }
+}
+            // Animate squares as time passes
+            let batchTimer = setInterval(() => {
+                fillSquare(currentBatch);
+                currentBatch++;
+                if (currentBatch >= totalBatches) {
+                    clearInterval(batchTimer);
+                }
+            }, 62000); // 1 min + buffer per batch
+            fillSquare(0); // fill first immediately
+
+    try {
+                const maxSwingEnabled = document.getElementById('max-swing-toggle').checked;
+                const fluctThresholdEnabled = document.getElementById('fluct-threshold-toggle').checked;
                 const maxSwing = document.getElementById('max-swing').value;
-const fluctThreshold = document.getElementById('fluct-threshold').value;
-const resp = await fetch(`/analyze?max_swing=${encodeURIComponent(maxSwing)}&fluct_threshold=${encodeURIComponent(fluctThreshold)}`);
+                const fluctThreshold = document.getElementById('fluct-threshold').value;
+                const coinType = document.getElementById('coin-type-switcher').value;
+                let url = `/analyze?coin_type=${encodeURIComponent(coinType)}`;
+                if (maxSwingEnabled) url += `&max_swing=${encodeURIComponent(maxSwing)}`;
+                if (fluctThresholdEnabled) url += `&fluct_threshold=${encodeURIComponent(fluctThreshold)}`;
+                const resp = await fetch(url);
                 const data = await resp.json();
-                console.log("Fetched data from /analyze:", data);
                 document.getElementById('loading').style.display = 'none';
+                progressBarRow.style.display = 'none';
+                progressBarLoadingText.style.display = 'none';
+                analyzeBtn.textContent = 'Analysis Complete!';
+                clearInterval(batchTimer);
                 if (data.status === 'success') {
                     const tbody = document.getElementById('coin-table-body');
                     if (data.data.length === 0) {
@@ -194,19 +362,49 @@ const resp = await fetch(`/analyze?max_swing=${encodeURIComponent(maxSwing)}&flu
                         `;
                     } else {
                         tbody.innerHTML = '';
-                        data.data.forEach(coin => {
-                            tbody.innerHTML += `
-                                <tr>
-                                    <td>${coin.name}</td>
-                                    <td>${coin.symbol.toUpperCase()}</td>
-                                    <td>$${coin.current_price.toFixed(2)}</td>
-                                    <td>${coin.fluctuations}</td>
-                                    <td>${coin.max_swing.toFixed(2)}%</td>
-                                    <td>$${coin.high ? coin.high.toFixed(2) : '-'}</td>
-                                    <td>$${coin.low ? coin.low.toFixed(2) : '-'}</td>
-                                </tr>
-                            `;
-                        });
+                        // Helper: Check if coin.id is a valid CoinGecko ID (non-empty string)
+    function isValidCoinGeckoId(id) {
+        return typeof id === 'string' && id.trim().length > 0;
+    }
+    data.data.forEach(coin => {
+        const explanation = coin.explanation ? coin.explanation : '-';
+        tbody.innerHTML += `
+            <tr class="coin-row" style="cursor:pointer;" title="${explanation.replace(/\"/g, '&quot;')}">
+                <td>${coin.name}</td>
+                <td>${coin.symbol ? coin.symbol.toUpperCase() : ''}</td>
+                <td>$${coin.current_price ? coin.current_price.toFixed(2) : '-'}</td>
+                <td>${coin.trend || '-'}</td>
+                <td>${coin.breakout ? '<span style=\'color:#a259ff\'>Yes</span>' : 'No'}</td>
+                <td><span class="badge bg-info text-dark">${coin.opportunity_score !== undefined ? coin.opportunity_score : '-'}</span></td>
+                <td>
+                    ${coin.explanation ? `<span class="explanation-badge badge bg-secondary text-light" data-explanation="${explanation.replace(/\"/g, '&quot;')}"><i class="bi bi-info-circle"></i> Details</span>` : '-'}
+                </td>
+                <td>
+                    ${isValidCoinGeckoId(coin.id) ? `<button class="btn btn-outline-info btn-sm view-graph-btn" data-coin-id="${coin.id}"><i class="bi bi-graph-up"></i> View Graph</button>` : `<button class="btn btn-outline-secondary btn-sm" disabled title="Chart unavailable for this coin"><i class="bi bi-graph-up"></i> View Graph</button>`}
+                </td>
+            </tr>
+        `;
+    });
+    // Tooltip/card logic
+    setTimeout(() => {
+        document.querySelectorAll('.explanation-badge').forEach(el => {
+            el.addEventListener('mouseenter', function(e) {
+                const tip = document.createElement('div');
+                tip.className = 'custom-tooltip-card';
+                tip.innerHTML = `<div style=\'padding:10px 16px; background:#1b2233; color:#fff; border-radius:10px; box-shadow:0 4px 16px #d200ff99; font-size:1em; max-width:340px;\'>${el.getAttribute('data-explanation')}</div>`;
+                tip.style.position = 'fixed';
+                tip.style.left = (e.clientX + 10) + 'px';
+                tip.style.top = (e.clientY + 10) + 'px';
+                tip.style.zIndex = 9999;
+                tip.id = 'coin-tip';
+                document.body.appendChild(tip);
+            });
+            el.addEventListener('mouseleave', function() {
+                const tip = document.getElementById('coin-tip');
+                if (tip) tip.remove();
+            });
+        });
+    }, 100);
                     }
                     document.getElementById('results').style.display = '';
                 } else {
@@ -216,11 +414,155 @@ const resp = await fetch(`/analyze?max_swing=${encodeURIComponent(maxSwing)}&flu
                 }
             } catch (e) {
                 document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').innerText = 'Failed to fetch data. ' + e;
+                progressBarRow.style.display = 'none';
+                progressBarLoadingText.style.display = 'none';
+                analyzeBtn.textContent = 'Analysis Complete!';
+                clearInterval(batchTimer);
+                // Error case
                 document.getElementById('error').style.display = '';
+                document.getElementById('error').textContent = 'Failed to fetch data. ' + e;
                 console.error("JS fetch error:", e);
+            } finally {
+                setTimeout(() => {
+                    analyzeBtn.textContent = 'Analyze Coins';
+                    analyzeBtn.disabled = false;
+                }, 1800);
             }
         };
+    // Enable/disable input fields based on toggles
+    document.getElementById('max-swing-toggle').addEventListener('change', function() {
+    const input = document.getElementById('max-swing');
+    input.disabled = !this.checked;
+    if (input.disabled) {
+        input.style.background = '#3d155f';
+        input.style.color = '#f2e9ff';
+        input.style.opacity = 0.5;
+    } else {
+        input.style.background = '#3d155f';
+        input.style.color = '#f2e9ff';
+        input.style.opacity = 0.8;
+    }
+});
+document.getElementById('fluct-threshold-toggle').addEventListener('change', function() {
+    const input = document.getElementById('fluct-threshold');
+    input.disabled = !this.checked;
+    if (input.disabled) {
+        input.style.background = '#3d155f';
+        input.style.color = '#f2e9ff';
+        input.style.opacity = 0.5;
+    } else {
+        input.style.background = '#3d155f';
+        input.style.color = '#f2e9ff';
+        input.style.opacity = 0.8;
+    }
+});
+    // Add event listener for coin type switcher
+    document.getElementById('coin-type-switcher').addEventListener('change', function() {
+        document.getElementById('analyze-btn').click();
+    });
     </script>
+<!-- Graph Modal -->
+<div class="modal fade" id="graphModal" tabindex="-1" aria-labelledby="graphModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="graphModalLabel">Coin Price Chart</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-end mb-2">
+          <select id="graphTimeRange" class="form-select bg-dark text-light w-auto">
+            <option value="1">1 Day</option>
+            <option value="7" selected>7 Days</option>
+            <option value="30">30 Days</option>
+          </select>
+        </div>
+        <div id="coinChart" style="height:400px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.31.1.min.js"></script>
+<script>
+// Graph modal logic
+// --- Graph Modal logic with future-proofed unique ID support ---
+var currentCoinId = null;
+var currentModalSuffix = '';
+
+function getGraphModalIds(suffix) {
+    // Helper to get unique element IDs for modal, label, time range, chart
+    suffix = suffix ? '_' + suffix : '';
+    return {
+        modal: 'graphModal' + suffix,
+        label: 'graphModalLabel' + suffix,
+        timeRange: 'graphTimeRange' + suffix,
+        chart: 'coinChart' + suffix
+    };
+}
+
+function showCoinGraph(coinId, coinName) {
+    currentCoinId = coinId;
+    currentModalSuffix = '';
+    // For now, use single modal, but logic supports unique IDs
+    var ids = getGraphModalIds(currentModalSuffix);
+    document.getElementById(ids.label).innerText = coinName + ' Price Chart';
+    loadCoinChart(coinId, document.getElementById(ids.timeRange).value, ids);
+    var modal = new bootstrap.Modal(document.getElementById(ids.modal));
+    modal.show();
+}
+
+document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.view-graph-btn');
+    if (btn) {
+        const coinId = btn.getAttribute('data-coin-id');
+        const coinName = btn.closest('tr').querySelector('td').innerText;
+        showCoinGraph(coinId, coinName);
+    }
+});
+
+document.getElementById('graphTimeRange').addEventListener('change', function() {
+    if (currentCoinId) {
+        var ids = getGraphModalIds(currentModalSuffix);
+        loadCoinChart(currentCoinId, this.value, ids);
+    }
+});
+async function loadCoinChart(coinId, days, ids) {
+    // ids: {modal, label, timeRange, chart}
+    ids = ids || getGraphModalIds(currentModalSuffix);
+    const chartDiv = document.getElementById(ids.chart);
+    chartDiv.innerHTML = '<div class="text-center my-4"><div class="spinner-border text-info"></div><div>Loading price data...</div></div>';
+    try {
+        const resp = await fetch(`/price_history?coin_id=${encodeURIComponent(coinId)}&days=${days}`);
+        const data = await resp.json();
+        if (data.status === 'success') {
+            const prices = data.prices;
+            const x = prices.map(p => new Date(p[0]));
+            const y = prices.map(p => p[1]);
+            Plotly.newPlot(ids.chart, [{x, y, type:'scatter', mode:'lines+markers', line:{color:'#d200ff'} }], {
+                margin: { t: 32, r: 8, l: 40, b: 40 },
+                paper_bgcolor: '#25003e',
+                plot_bgcolor: '#25003e',
+                xaxis: { title: 'Time', color: '#fff' },
+                yaxis: { title: 'Price (USD)', color: '#fff' },
+            }, {displayModeBar: false});
+        } else {
+            chartDiv.innerHTML = '<div class="alert alert-danger">Failed to load chart data.</div>';
+        }
+    } catch (e) {
+        chartDiv.innerHTML = '<div class="alert alert-danger">Chart error: ' + e + '</div>';
+    }
+}
+// --- END Graph Modal logic ---
+// Global fix: forcibly remove lingering modal-backdrop and restore body state after any modal is closed
+if (typeof bootstrap !== 'undefined') {
+    document.addEventListener('hidden.bs.modal', function () {
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style = '';
+    });
+}
+</script>
+<script src="/static/matrix-bg.js"></script>
 </body>
 </html>
