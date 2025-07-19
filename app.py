@@ -56,8 +56,8 @@ def analyze():
             analyze_cache['params'] = cache_key
             return jsonify(result)
 
-        # Use enhanced analysis from crypto_volatility.py
-        from crypto_volatility import analyze as enhanced_analyze
+        # Use enhanced analysis from Cryptolyzer
+        from Cryptolyzer import analyze as enhanced_analyze
         with app.app_context():
             response = enhanced_analyze()
         return response
