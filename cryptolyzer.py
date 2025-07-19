@@ -13,7 +13,6 @@ def index():
     return render_template('index.html')
 
 def get_top_coins():
-
     """Get top 100 coins by market cap"""
     url = f"{COINGECKO_API_URL}/coins/markets"
     params = {
@@ -56,8 +55,6 @@ def analyze():
     try:
         # Get top coins
         coins = get_top_coins()
-        
-        # Analyze each coin
         results = []
         raw_scores = []
         coin_results = []
