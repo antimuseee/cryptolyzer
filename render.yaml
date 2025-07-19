@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: crypto-volatility-app
+    name: cryptolyzer-app
     env: python
     buildCommand: "pip install -r requirements.txt"
     startCommand: "gunicorn app:app"
