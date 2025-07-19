@@ -81,57 +81,52 @@ def analyze_fluctuations(coins, max_swing=None, fluct_threshold=None):
     progress_cache['messages'].append(f"Fetched {len(coins)} coins from API.")
     filtered = 0
     skipped = 0
-    RATE_LIMIT = 29  # CoinGecko free tier: 30/min, use 29 to be safe
     total = len(coins)
-    num_batches = math.ceil(total / RATE_LIMIT)
-    for batch_idx in range(num_batches):
-        start = batch_idx * RATE_LIMIT
-        end = min((batch_idx + 1) * RATE_LIMIT, total)
-        batch = coins[start:end]
-        msg = f"Processing batch {batch_idx+1}/{num_batches}: coins {start+1}-{end} of {total}"
-        print(msg)
-        progress_cache['messages'].append(msg)
-        for coin in batch:
-            try:
-                price_data = get_historical_prices(coin['id'])
-                if len(price_data) < 2:
-                    skipped += 1
-                    continue
-                prices = [p['price'] for p in price_data]
-                min_price = min(prices)
-                max_price = max(prices)
-                swing = (max_price - min_price) / min_price * 100
-                if max_swing is not None and swing > max_swing:
-                    skipped += 1
-                    continue
-                fluct_count = 0
-                for i in range(1, len(prices)):
-                    pct_change = abs(prices[i] - prices[i-1]) / prices[i-1] * 100
-                    if fluct_threshold is not None:
-                        if pct_change >= fluct_threshold:
-                            fluct_count += 1
-                    else:
-                        if pct_change:
-                            fluct_count += 1
-                fluctuation_data.append({
-                    'name': coin['name'],
-                    'symbol': coin['symbol'],
-                    'current_price': coin['current_price'],
-                    'fluctuations': fluct_count,
-                    'max_swing': max_swing,
-                    'high': max_price,
-                    'low': min_price,
-                    'market_cap': coin['market_cap']
-                })
-            except Exception as e:
-                print(f"Error processing {coin['name']}: {str(e)}")
-                progress_cache['messages'].append(f"Error processing {coin['name']}: {str(e)}")
+    msg = f"Processing {total} coins, one every 2 seconds (max 30/min). This may take a while."
+    print(msg)
+    progress_cache['messages'].append(msg)
+    for idx, coin in enumerate(coins):
+        try:
+            price_data = get_historical_prices(coin['id'])
+            if len(price_data) < 2:
+                skipped += 1
                 continue
-        if batch_idx < num_batches - 1:
-            msg = f"Sleeping for 1 second to respect CoinGecko rate limits..."
+            prices = [p['price'] for p in price_data]
+            min_price = min(prices)
+            max_price = max(prices)
+            swing = (max_price - min_price) / min_price * 100
+            if max_swing is not None and swing > max_swing:
+                skipped += 1
+                continue
+            fluct_count = 0
+            for i in range(1, len(prices)):
+                pct_change = abs(prices[i] - prices[i-1]) / prices[i-1] * 100
+                if fluct_threshold is not None:
+                    if pct_change >= fluct_threshold:
+                        fluct_count += 1
+                else:
+                    if pct_change:
+                        fluct_count += 1
+            fluctuation_data.append({
+                'name': coin['name'],
+                'symbol': coin['symbol'],
+                'current_price': coin['current_price'],
+                'fluctuations': fluct_count,
+                'max_swing': max_swing,
+                'high': max_price,
+                'low': min_price,
+                'market_cap': coin['market_cap']
+            })
+        except Exception as e:
+            print(f"Error processing {coin['name']}: {str(e)}")
+            progress_cache['messages'].append(f"Error processing {coin['name']}: {str(e)}")
+            continue
+        # Sleep 2 seconds between each coin to respect CoinGecko rate limits
+        if idx < total - 1:
+            msg = f"Sleeping 2 seconds before next coin... ({idx+2}/{total})"
             print(msg)
             progress_cache['messages'].append(msg)
-            time.sleep(1)
+            time.sleep(2)
     fluctuation_data.sort(key=lambda x: x['fluctuations'], reverse=True)
     msg = f"Filtered {len(fluctuation_data)} coins, skipped {skipped}."
     print(msg)

@@ -1,0 +1,12 @@
+[build]
+  publish = "public"
+  command = "echo 'No build step required'"
+
+[dev]
+  command = "flask run --host=0.0.0.0 --port=8888"
+  port = 8888
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
