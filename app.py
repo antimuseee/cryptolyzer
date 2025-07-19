@@ -145,9 +145,22 @@ def analyze_progress():
     return jsonify({'messages': progress_cache.get('messages', [])})
 
 
+# In-memory cache for CoinGecko results
+coingecko_cache = {
+    'data': None,
+    'timestamp': 0
+}
+COINGECKO_CACHE_DURATION = 300  # 5 minutes
+
 def get_top_coins():
-    # Fetch top 100 coins by market cap from CoinGecko
+    # Fetch top 100 coins by market cap from CoinGecko, with caching and robust error handling
+    global coingecko_cache
     try:
+        now = time.time()
+        # Serve from cache if recent
+        if coingecko_cache['data'] and now - coingecko_cache['timestamp'] < COINGECKO_CACHE_DURATION:
+            print("[CoinGecko] Serving top coins from cache.")
+            return coingecko_cache['data']
         url = f"{COINGECKO_URL}/coins/markets"
         params = {
             'vs_currency': 'usd',
@@ -159,17 +172,33 @@ def get_top_coins():
         print(f"[CoinGecko] Fetching top coins: {url} params={params}")
         resp = requests.get(url, params=params, timeout=10)
         print(f"[CoinGecko] Status: {resp.status_code}")
+        if resp.status_code == 429:
+            print(f"[CoinGecko] Rate limited! Serving cached data if available.")
+            if coingecko_cache['data']:
+                return coingecko_cache['data']
+            return []
         if resp.status_code != 200:
             print(f"[CoinGecko] Error: {resp.text}")
+            if coingecko_cache['data']:
+                return coingecko_cache['data']
             return []
         data = resp.json()
         if not data:
             print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
+            if coingecko_cache['data']:
+                return coingecko_cache['data']
+            return []
+        # Update cache
+        coingecko_cache['data'] = data
+        coingecko_cache['timestamp'] = now
         return data
     except Exception as e:
         print(f"Error fetching top coins: {e}")
+        if coingecko_cache['data']:
+            print("[CoinGecko] Exception occurred, serving cached data.")
+            return coingecko_cache['data']
         return []
-        return []
+
 
 def get_historical_prices(coin_id):
     # Fetch 7 days of daily price data from CoinGecko
@@ -278,24 +307,69 @@ def price_history():
     days = request.args.get('days', 7)
     if not coin_id:
         return jsonify({'status': 'error', 'message': 'Missing coin_id'}), 400
-    try:
-        url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-        params = {'vs_currency': 'usd', 'days': days}
-        resp = requests.get(url, params=params, timeout=10)
-        if resp.status_code == 429:
-            print(f"[ERROR] CoinGecko rate limit hit for coin_id={coin_id}, days={days}")
-            return jsonify({'status': 'error', 'message': 'CoinGecko API rate limit reached (429). Please wait and try again.'}), 429
+    import time
+    max_retries = 5
+    backoff_times = [10, 30, 60, 120, 240]  # seconds
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    params = {'vs_currency': 'usd', 'days': days}
+    for attempt in range(max_retries):
         try:
+            resp = requests.get(url, params=params, timeout=10)
+            if resp.status_code == 429:
+                wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
+                print(f"[ERROR] CoinGecko rate limit hit for coin_id={coin_id}, days={days}, attempt {attempt+1}/{max_retries}. Sleeping {wait_time}s.")
+                time.sleep(wait_time)
+                continue
             resp.raise_for_status()
-        except Exception as e:
+            data = resp.json()
+            prices = data.get('prices', [])
+            return jsonify({'status': 'success', 'prices': prices})
+        except requests.HTTPError as e:
+            if resp.status_code == 429:
+                wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
+                print(f"[ERROR] CoinGecko HTTPError 429 for coin_id={coin_id}, days={days}, attempt {attempt+1}/{max_retries}. Sleeping {wait_time}s.")
+                time.sleep(wait_time)
+                continue
             print(f"[ERROR] CoinGecko API error for coin_id={coin_id}, days={days}: {e}")
             return jsonify({'status': 'error', 'message': f'CoinGecko API error: {str(e)}'}), resp.status_code
-        data = resp.json()
-        prices = data.get('prices', [])
-        return jsonify({'status': 'success', 'prices': prices})
-    except Exception as e:
-        print(f"[ERROR] Backend exception in /price_history for coin_id={coin_id}, days={days}: {e}")
-        return jsonify({'status': 'error', 'message': str(e)})
+        except Exception as e:
+            print(f"[ERROR] Backend exception in /price_history for coin_id={coin_id}, days={days}: {e}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'CoinGecko API rate limit reached after multiple retries. Please try again later.'}), 429
+
+    coin_id = request.args.get('coin_id')
+    days = request.args.get('days', 7)
+    if not coin_id:
+        return jsonify({'status': 'error', 'message': 'Missing coin_id'}), 400
+    import time
+    max_retries = 5
+    backoff_times = [10, 30, 60, 120, 240]  # seconds
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    params = {'vs_currency': 'usd', 'days': days}
+    for attempt in range(max_retries):
+        try:
+            resp = requests.get(url, params=params, timeout=10)
+            if resp.status_code == 429:
+                wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
+                print(f"[ERROR] CoinGecko rate limit hit for coin_id={coin_id}, days={days}, attempt {attempt+1}/{max_retries}. Sleeping {wait_time}s.")
+                time.sleep(wait_time)
+                continue
+            resp.raise_for_status()
+            data = resp.json()
+            prices = data.get('prices', [])
+            return jsonify({'status': 'success', 'prices': prices})
+        except requests.HTTPError as e:
+            if resp.status_code == 429:
+                wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
+                print(f"[ERROR] CoinGecko HTTPError 429 for coin_id={coin_id}, days={days}, attempt {attempt+1}/{max_retries}. Sleeping {wait_time}s.")
+                time.sleep(wait_time)
+                continue
+            print(f"[ERROR] CoinGecko API error for coin_id={coin_id}, days={days}: {e}")
+            return jsonify({'status': 'error', 'message': f'CoinGecko API error: {str(e)}'}), resp.status_code
+        except Exception as e:
+            print(f"[ERROR] Backend exception in /price_history for coin_id={coin_id}, days={days}: {e}")
+            return jsonify({'status': 'error', 'message': str(e)}), 500
+    return jsonify({'status': 'error', 'message': 'CoinGecko API rate limit reached after multiple retries. Please try again later.'}), 429
 
 if __name__ == '__main__':
     app.run(debug=True)
