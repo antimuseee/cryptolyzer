@@ -2,66 +2,48 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
-import time
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 
-# Helper for rate-limited requests
-MAX_RETRIES = 5
-BACKOFF_TIMES = [10, 30, 60, 120, 240]  # seconds
+# Only fetch 29 coins per request to avoid CoinGecko free API rate limit
+COINS_PER_REQUEST = 29
 
 def get_top_coins():
-    """Get top 100 coins by market cap, with rate limit handling"""
+    """Get top 29 coins by market cap (single API call, no retry/sleep)"""
     url = f"{COINGECKO_API_URL}/coins/markets"
     params = {
         'vs_currency': 'usd',
         'order': 'market_cap_desc',
-        'per_page': 100,
+        'per_page': COINS_PER_REQUEST,
         'page': 1,
         'sparkline': False
     }
-    for attempt in range(MAX_RETRIES):
-        print(f"[CoinGecko] Fetching top coins: {url} params={params}")
-        response = requests.get(url, params=params)
-        print(f"[CoinGecko] Status: {response.status_code}")
-        if response.status_code == 200:
-            data = response.json()
-            if not data:
-                print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
-            return data
-        elif response.status_code == 429:
-            wait_time = BACKOFF_TIMES[min(attempt, len(BACKOFF_TIMES)-1)]
-            print(f"[CoinGecko] Rate limited! Sleeping {wait_time}s before retrying...")
-            time.sleep(wait_time)
-            continue
-        else:
-            print(f"[CoinGecko] Error: {response.text}")
-            return []
-    print("[CoinGecko] Failed to fetch top coins after retries.")
-    return []
+    print(f"[CoinGecko] Fetching top coins: {url} params={params}")
+    response = requests.get(url, params=params)
+    print(f"[CoinGecko] Status: {response.status_code}")
+    if response.status_code == 200:
+        data = response.json()
+        if not data:
+            print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
+        return data
+    else:
+        print(f"[CoinGecko] Error: {response.text}")
+        return []
 
 def get_price_history(coin_id, days=7):
-    """Get price history for a specific coin, with rate limit handling"""
+    """Get price history for a specific coin, with basic error handling"""
     url = f"{COINGECKO_API_URL}/coins/{coin_id}/market_chart"
     params = {
         'vs_currency': 'usd',
         'days': days
     }
-    for attempt in range(MAX_RETRIES):
-        print(f"[CoinGecko] Fetching price history for {coin_id}: {url} params={params}")
-        response = requests.get(url, params=params)
-        if response.status_code == 200:
-            return response.json()
-        elif response.status_code == 429:
-            wait_time = BACKOFF_TIMES[min(attempt, len(BACKOFF_TIMES)-1)]
-            print(f"[CoinGecko] Rate limited on price history! Sleeping {wait_time}s before retrying...")
-            time.sleep(wait_time)
-            continue
-        else:
-            print(f"[CoinGecko] Error fetching price history: {response.text}")
-            return {}
-    print(f"[CoinGecko] Failed to fetch price history for {coin_id} after retries.")
-    return {}
+    print(f"[CoinGecko] Fetching price history for {coin_id}: {url} params={params}")
+    response = requests.get(url, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"[CoinGecko] Error fetching price history: {response.text}")
+        return {}
 
 def calculate_volatility(prices):
     """Calculate volatility (standard deviation) of price changes"""
@@ -73,14 +55,12 @@ def analyze():
     import json
     from flask import jsonify
     try:
-        # Get top coins
+        # Get top coins (29 per request)
         coins = get_top_coins()
         results = []
         raw_scores = []
         coin_results = []
-        # Limit to 29 coins per request to avoid CoinGecko free API rate limit
-        limited_coins = coins[:29]
-        for coin in limited_coins:  # Analyze up to 29 coins for performance
+        for coin in coins:  # Analyze up to 29 coins for performance
             try:
                 # Get price history
                 price_data = get_price_history(coin['id'])['prices']
