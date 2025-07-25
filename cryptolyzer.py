@@ -2,15 +2,8 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
-from flask import Flask, render_template, jsonify
-
-app = Flask(__name__)
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
-
-@app.route('/')
-def index():
-    return render_template('index.html')
 
 def get_top_coins():
     """Get top 100 coins by market cap"""
@@ -50,8 +43,9 @@ def calculate_volatility(prices):
     df['price_change'] = df['price'].pct_change()
     return df['price_change'].std()
 
-@app.route('/analyze')
 def analyze():
+    import json
+    from flask import jsonify
     try:
         # Get top coins
         coins = get_top_coins()
@@ -160,6 +154,3 @@ def analyze():
             'status': 'error',
             'message': str(e)
         })
-
-if __name__ == '__main__':
-    app.run(debug=True)
