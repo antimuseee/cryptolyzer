@@ -2,14 +2,16 @@ import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
+import time
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 
-# Only fetch 29 coins per request to avoid CoinGecko free API rate limit
-COINS_PER_REQUEST = 29
+# Only fetch 25 coins per request to avoid CoinGecko free API rate limit
+COINS_PER_REQUEST = 25
+MIN_ANALYSIS_DURATION = 60  # seconds
 
 def get_top_coins():
-    """Get top 29 coins by market cap (single API call, no retry/sleep)"""
+    """Get top 25 coins by market cap (single API call, no retry/sleep)"""
     url = f"{COINGECKO_API_URL}/coins/markets"
     params = {
         'vs_currency': 'usd',
@@ -54,13 +56,14 @@ def calculate_volatility(prices):
 def analyze():
     import json
     from flask import jsonify
+    start_time = time.time()
     try:
-        # Get top coins (29 per request)
+        # Get top coins (25 per request)
         coins = get_top_coins()
         results = []
         raw_scores = []
         coin_results = []
-        for coin in coins:  # Analyze up to 29 coins for performance
+        for coin in coins:  # Analyze up to 25 coins for performance
             try:
                 # Get price history
                 price_data = get_price_history(coin['id'])['prices']
@@ -152,10 +155,14 @@ def analyze():
                 results.append(c)
         # Sort by opportunity score (descending), then by volatility (ascending), then by price change (descending)
         results.sort(key=lambda x: (-x['opportunity_score'], x['volatility'], -x['price_change']))
+        # Enforce minimum analysis duration of 1 minute
+        elapsed = time.time() - start_time
+        if elapsed < MIN_ANALYSIS_DURATION:
+            time.sleep(MIN_ANALYSIS_DURATION - elapsed)
         return jsonify({
             'status': 'success',
             'data': results,
-            'message': 'Free API mode: Only 29 coins analyzed per request to avoid CoinGecko rate limits.'
+            'message': 'Free API mode: Only 25 coins analyzed per request to avoid CoinGecko rate limits. Each request takes at least 1 minute.'
         })
         
     except Exception as e:
