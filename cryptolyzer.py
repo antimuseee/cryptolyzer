@@ -78,7 +78,9 @@ def analyze():
         results = []
         raw_scores = []
         coin_results = []
-        for coin in coins[:50]:  # Analyze top 50 coins for performance
+        # Limit to 29 coins per request to avoid CoinGecko free API rate limit
+        limited_coins = coins[:29]
+        for coin in limited_coins:  # Analyze up to 29 coins for performance
             try:
                 # Get price history
                 price_data = get_price_history(coin['id'])['prices']
@@ -172,7 +174,8 @@ def analyze():
         results.sort(key=lambda x: (-x['opportunity_score'], x['volatility'], -x['price_change']))
         return jsonify({
             'status': 'success',
-            'data': results
+            'data': results,
+            'message': 'Free API mode: Only 29 coins analyzed per request to avoid CoinGecko rate limits.'
         })
         
     except Exception as e:
