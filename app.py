@@ -6,6 +6,8 @@ import os
 
 app = Flask(__name__)
 
+COINGECKO_URL = "https://api.coingecko.com/api/v3"
+
 # Global error handler to ensure JSON responses
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -18,7 +20,19 @@ def handle_exception(e):
         "details": str(e)
     }), 500
 
-COINGECKO_URL = "https://api.coingecko.com/api/v3"
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({
+        "status": "error",
+        "message": "Endpoint not found"
+    }), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    return jsonify({
+        "status": "error",
+        "message": "Internal server error"
+    }), 500
 
 # Simple in-memory cache for analyze endpoint
 analyze_cache = {
@@ -41,6 +55,21 @@ def health():
         "message": "Cryptolyzer is running",
         "timestamp": time.time()
     })
+
+@app.route('/test')
+def test():
+    """Simple test endpoint"""
+    try:
+        return jsonify({
+            "status": "success",
+            "message": "Test endpoint working",
+            "data": {"test": "value"}
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @app.route('/analyze')
 def analyze():
@@ -101,4 +130,7 @@ def price_history():
     return jsonify({'status': 'error', 'message': 'CoinGecko API rate limit reached after multiple retries. Please try again later.'}), 429
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Production settings for Render
+    app.config['JSON_AS_ASCII'] = False
+    app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
