@@ -1,11 +1,11 @@
 from flask import Flask, render_template, jsonify, request
 import time
 import requests
-from cryptolyzer import analyze as cryptolyzer_analyze, get_top_coins, get_price_history
 import os
 from dotenv import load_dotenv
+from cryptolyzer import analyze as cryptolyzer_analyze, get_top_coins, get_price_history
 
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)

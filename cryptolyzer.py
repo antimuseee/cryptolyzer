@@ -4,6 +4,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
 import time
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 
