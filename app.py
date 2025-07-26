@@ -3,6 +3,10 @@ import time
 import requests
 from cryptolyzer import analyze as cryptolyzer_analyze, get_top_coins, get_price_history
 import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 

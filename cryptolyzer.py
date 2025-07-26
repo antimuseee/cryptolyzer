@@ -3,15 +3,19 @@ import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
 import time
+import os
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 
-# Only fetch 25 coins per request to avoid CoinGecko free API rate limit
-COINS_PER_REQUEST = 25
-MIN_ANALYSIS_DURATION = 60  # seconds
+# API Key configuration
+COINGECKO_API_KEY = os.environ.get('COINGECKO_API_KEY', '')  # Get from environment variable
+
+# Increased limits with API key
+COINS_PER_REQUEST = 100 if COINGECKO_API_KEY else 25  # More coins with API key
+MIN_ANALYSIS_DURATION = 30 if COINGECKO_API_KEY else 60  # Faster with API key
 
 def get_top_coins():
-    """Get top 25 coins by market cap (single API call, no retry/sleep)"""
+    """Get top coins by market cap (with API key if available)"""
     url = f"{COINGECKO_API_URL}/coins/markets"
     params = {
         'vs_currency': 'usd',
@@ -20,9 +24,16 @@ def get_top_coins():
         'page': 1,
         'sparkline': False
     }
+    
+    # Add API key to headers if available
+    headers = {}
+    if COINGECKO_API_KEY:
+        headers['X-CG-Demo-API-Key'] = COINGECKO_API_KEY
+        print(f"[CoinGecko] Using API key for enhanced rate limits")
+    
     print(f"[CoinGecko] Fetching top coins: {url} params={params}")
     try:
-        response = requests.get(url, params=params, timeout=30)
+        response = requests.get(url, params=params, headers=headers, timeout=30)
         print(f"[CoinGecko] Status: {response.status_code}")
         if response.status_code == 200:
             data = response.json()
@@ -77,15 +88,21 @@ def get_fallback_coins():
     ]
 
 def get_price_history(coin_id, days=7):
-    """Get price history for a specific coin, with basic error handling"""
+    """Get price history for a specific coin, with API key if available"""
     url = f"{COINGECKO_API_URL}/coins/{coin_id}/market_chart"
     params = {
         'vs_currency': 'usd',
         'days': days
     }
+    
+    # Add API key to headers if available
+    headers = {}
+    if COINGECKO_API_KEY:
+        headers['X-CG-Demo-API-Key'] = COINGECKO_API_KEY
+    
     print(f"[CoinGecko] Fetching price history for {coin_id}: {url} params={params}")
     try:
-        response = requests.get(url, params=params, timeout=30)
+        response = requests.get(url, params=params, headers=headers, timeout=30)
         if response.status_code == 200:
             return response.json()
         else:
@@ -258,7 +275,11 @@ def analyze():
         elapsed = time.time() - start_time
         if elapsed < MIN_ANALYSIS_DURATION:
             time.sleep(MIN_ANALYSIS_DURATION - elapsed)
-        message = 'Free API mode: Only 25 coins analyzed per request to avoid CoinGecko rate limits. Each request takes at least 1 minute.'
+        if COINGECKO_API_KEY:
+            message = f'Enhanced API mode: {len(results)} coins analyzed with CoinGecko API key. Faster analysis and higher rate limits.'
+        else:
+            message = 'Free API mode: Only 25 coins analyzed per request to avoid CoinGecko rate limits. Each request takes at least 1 minute.'
+        
         if using_fallback:
             message = 'Using fallback data due to CoinGecko API issues. Real-time data will be restored when API is available.'
         
