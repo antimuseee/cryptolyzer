@@ -10,6 +10,12 @@ COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 # API Key configuration
 COINGECKO_API_KEY = os.environ.get('COINGECKO_API_KEY', '')
 
+# Debug API key status
+if COINGECKO_API_KEY:
+    print(f"[CoinGecko] API key found: {COINGECKO_API_KEY[:10]}...")
+else:
+    print("[CoinGecko] No API key found - using free tier limits")
+
 # Increased limits with API key
 COINS_PER_REQUEST = 100 if COINGECKO_API_KEY else 25
 MIN_ANALYSIS_DURATION = 30 if COINGECKO_API_KEY else 60
@@ -28,10 +34,13 @@ def get_top_coins():
     # Add API key to headers if available
     headers = {}
     if COINGECKO_API_KEY:
+        # Try both header names for compatibility
+        headers['X-CG-API-Key'] = COINGECKO_API_KEY
         headers['X-CG-Demo-API-Key'] = COINGECKO_API_KEY
         print(f"[CoinGecko] Using API key for enhanced rate limits")
     
     print(f"[CoinGecko] Fetching top coins: {url} params={params}")
+    print(f"[CoinGecko] Headers: {headers}")
     try:
         response = requests.get(url, params=params, headers=headers, timeout=30)
         print(f"[CoinGecko] Status: {response.status_code}")
@@ -98,6 +107,8 @@ def get_price_history(coin_id, days=7):
     # Add API key to headers if available
     headers = {}
     if COINGECKO_API_KEY:
+        # Try both header names for compatibility
+        headers['X-CG-API-Key'] = COINGECKO_API_KEY
         headers['X-CG-Demo-API-Key'] = COINGECKO_API_KEY
     
     print(f"[CoinGecko] Fetching price history for {coin_id}: {url} params={params}")
