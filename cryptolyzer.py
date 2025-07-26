@@ -18,7 +18,6 @@ else:
 
 # Increased limits with API key
 COINS_PER_REQUEST = 100 if COINGECKO_API_KEY else 25
-MIN_ANALYSIS_DURATION = 30 if COINGECKO_API_KEY else 60
 
 def get_top_coins():
     """Get top coins by market cap (with API key if available)"""
@@ -281,14 +280,12 @@ def analyze():
                 'message': 'No coins could be analyzed. This might be due to API rate limits or temporary issues.'
             })
         
-        # Enforce minimum analysis duration of 1 minute
+        # Calculate analysis time
         elapsed = time.time() - start_time
-        if elapsed < MIN_ANALYSIS_DURATION:
-            time.sleep(MIN_ANALYSIS_DURATION - elapsed)
         if COINGECKO_API_KEY:
-            message = f'Enhanced API mode: {len(results)} coins analyzed with CoinGecko API key. Faster analysis and higher rate limits.'
+            message = f'Enhanced API mode: {len(results)} coins analyzed with CoinGecko API key. Analysis completed in {elapsed:.1f} seconds.'
         else:
-            message = 'Free API mode: Only 25 coins analyzed per request to avoid CoinGecko rate limits. Each request takes at least 1 minute.'
+            message = f'Free API mode: {len(results)} coins analyzed. Analysis completed in {elapsed:.1f} seconds. Consider upgrading to API key for faster analysis.'
         
         if using_fallback:
             message = 'Using fallback data due to CoinGecko API issues. Real-time data will be restored when API is available.'

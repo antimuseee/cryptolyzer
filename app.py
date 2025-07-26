@@ -125,9 +125,17 @@ def price_history():
     params = {'vs_currency': 'usd', 'days': days}
     for attempt in range(max_retries):
         try:
-            resp = requests.get(url, params=params, timeout=10)
+            # Add API key headers if available
+            headers = {}
+            api_key = os.environ.get('COINGECKO_API_KEY', '')
+            if api_key:
+                headers['X-CG-API-Key'] = api_key
+                headers['X-CG-Demo-API-Key'] = api_key
+            
+            resp = requests.get(url, params=params, headers=headers, timeout=10)
             if resp.status_code == 429:
                 wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
+                print(f"[CoinGecko] Rate limited, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(wait_time)
                 continue
             resp.raise_for_status()
@@ -137,6 +145,7 @@ def price_history():
         except requests.HTTPError as e:
             if resp.status_code == 429:
                 wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
+                print(f"[CoinGecko] Rate limited, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
                 time.sleep(wait_time)
                 continue
             return jsonify({'status': 'error', 'message': f'CoinGecko API error: {str(e)}'}), resp.status_code
