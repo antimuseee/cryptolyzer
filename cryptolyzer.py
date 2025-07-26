@@ -21,15 +21,22 @@ def get_top_coins():
         'sparkline': False
     }
     print(f"[CoinGecko] Fetching top coins: {url} params={params}")
-    response = requests.get(url, params=params)
-    print(f"[CoinGecko] Status: {response.status_code}")
-    if response.status_code == 200:
-        data = response.json()
-        if not data:
-            print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
-        return data
-    else:
-        print(f"[CoinGecko] Error: {response.text}")
+    try:
+        response = requests.get(url, params=params, timeout=30)
+        print(f"[CoinGecko] Status: {response.status_code}")
+        if response.status_code == 200:
+            data = response.json()
+            if not data:
+                print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
+            return data
+        else:
+            print(f"[CoinGecko] Error: {response.text}")
+            return []
+    except requests.exceptions.RequestException as e:
+        print(f"[CoinGecko] Request error: {str(e)}")
+        return []
+    except Exception as e:
+        print(f"[CoinGecko] Unexpected error: {str(e)}")
         return []
 
 def get_price_history(coin_id, days=7):
@@ -40,11 +47,18 @@ def get_price_history(coin_id, days=7):
         'days': days
     }
     print(f"[CoinGecko] Fetching price history for {coin_id}: {url} params={params}")
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"[CoinGecko] Error fetching price history: {response.text}")
+    try:
+        response = requests.get(url, params=params, timeout=30)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"[CoinGecko] Error fetching price history: {response.text}")
+            return {}
+    except requests.exceptions.RequestException as e:
+        print(f"[CoinGecko] Request error for price history: {str(e)}")
+        return {}
+    except Exception as e:
+        print(f"[CoinGecko] Unexpected error for price history: {str(e)}")
         return {}
 
 def calculate_volatility(prices):
@@ -60,6 +74,12 @@ def analyze():
     try:
         # Get top coins (25 per request)
         coins = get_top_coins()
+        if not coins:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to fetch coin data from CoinGecko API. Please try again later.'
+            })
+        
         results = []
         raw_scores = []
         coin_results = []
@@ -155,6 +175,14 @@ def analyze():
                 results.append(c)
         # Sort by opportunity score (descending), then by volatility (ascending), then by price change (descending)
         results.sort(key=lambda x: (-x['opportunity_score'], x['volatility'], -x['price_change']))
+        
+        # Check if we have any results
+        if not results:
+            return jsonify({
+                'status': 'error',
+                'message': 'No coins could be analyzed. This might be due to API rate limits or temporary issues.'
+            })
+        
         # Enforce minimum analysis duration of 1 minute
         elapsed = time.time() - start_time
         if elapsed < MIN_ANALYSIS_DURATION:

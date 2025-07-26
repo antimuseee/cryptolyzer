@@ -1,9 +1,22 @@
 from flask import Flask, render_template, jsonify, request
 import time
+import requests
 from cryptolyzer import analyze as cryptolyzer_analyze, get_top_coins, get_price_history
 import os
 
 app = Flask(__name__)
+
+# Global error handler to ensure JSON responses
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    print(f"Global error handler caught: {str(e)}")
+    print(traceback.format_exc())
+    return jsonify({
+        "status": "error",
+        "message": "Internal server error",
+        "details": str(e)
+    }), 500
 
 COINGECKO_URL = "https://api.coingecko.com/api/v3"
 
@@ -19,6 +32,15 @@ CACHE_DURATION = 900  # seconds (15 minutes)
 def index():
     coins = get_top_coins()
     return render_template('index.html', coins=coins)
+
+@app.route('/health')
+def health():
+    """Health check endpoint for debugging"""
+    return jsonify({
+        "status": "healthy",
+        "message": "Cryptolyzer is running",
+        "timestamp": time.time()
+    })
 
 @app.route('/analyze')
 def analyze():
@@ -40,11 +62,12 @@ def analyze():
         return response
     except Exception as e:
         import traceback
+        print(f"Error in analyze endpoint: {str(e)}")
         print(traceback.format_exc())
         result = {"status": "error", "message": str(e)}
         analyze_cache['data'] = result
         analyze_cache['timestamp'] = time.time()
-        return jsonify(result)
+        return jsonify(result), 500
 
 @app.route('/price_history')
 def price_history():
