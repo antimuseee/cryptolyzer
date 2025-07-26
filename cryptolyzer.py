@@ -8,11 +8,11 @@ import time
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 
 # API Key configuration
-COINGECKO_API_KEY = os.environ.get('COINGECKO_API_KEY', '')  # Get from environment variable
+COINGECKO_API_KEY = os.environ.get('COINGECKO_API_KEY', '')
 
 # Increased limits with API key
-COINS_PER_REQUEST = 100 if COINGECKO_API_KEY else 25  # More coins with API key
-MIN_ANALYSIS_DURATION = 30 if COINGECKO_API_KEY else 60  # Faster with API key
+COINS_PER_REQUEST = 100 if COINGECKO_API_KEY else 25
+MIN_ANALYSIS_DURATION = 30 if COINGECKO_API_KEY else 60
 
 def get_top_coins():
     """Get top coins by market cap (with API key if available)"""
@@ -118,7 +118,6 @@ def get_price_history(coin_id, days=7):
 def get_fallback_price_history(coin_id, days=7):
     """Return fallback price history when API is unavailable"""
     print(f"[CoinGecko] Using fallback price history for {coin_id}")
-    import time
     current_time = int(time.time() * 1000)
     prices = []
     
@@ -293,4 +292,4 @@ def analyze():
         return jsonify({
             'status': 'error',
             'message': str(e)
-        })
+        }) 
