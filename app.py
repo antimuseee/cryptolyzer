@@ -119,39 +119,30 @@ def price_history():
     days = request.args.get('days', 7)
     if not coin_id:
         return jsonify({'status': 'error', 'message': 'Missing coin_id'}), 400
-    max_retries = 5
-    backoff_times = [10, 30, 60, 120, 240]  # seconds
+    
     url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
     params = {'vs_currency': 'usd', 'days': days}
-    for attempt in range(max_retries):
-        try:
-            # Add API key headers if available
-            headers = {}
-            api_key = os.environ.get('COINGECKO_API_KEY', '')
-            if api_key:
-                headers['X-CG-API-Key'] = api_key
-                headers['X-CG-Demo-API-Key'] = api_key
-            
-            resp = requests.get(url, params=params, headers=headers, timeout=10)
-            if resp.status_code == 429:
-                wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
-                print(f"[CoinGecko] Rate limited, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
-                time.sleep(wait_time)
-                continue
-            resp.raise_for_status()
-            data = resp.json()
-            prices = data.get('prices', [])
-            return jsonify({'status': 'success', 'prices': prices})
-        except requests.HTTPError as e:
-            if resp.status_code == 429:
-                wait_time = backoff_times[min(attempt, len(backoff_times)-1)]
-                print(f"[CoinGecko] Rate limited, waiting {wait_time}s (attempt {attempt + 1}/{max_retries})")
-                time.sleep(wait_time)
-                continue
-            return jsonify({'status': 'error', 'message': f'CoinGecko API error: {str(e)}'}), resp.status_code
-        except Exception as e:
-            return jsonify({'status': 'error', 'message': str(e)}), 500
-    return jsonify({'status': 'error', 'message': 'CoinGecko API rate limit reached after multiple retries. Please try again later.'}), 429
+    
+    try:
+        # Add API key headers if available
+        headers = {}
+        api_key = os.environ.get('COINGECKO_API_KEY', '')
+        if api_key:
+            headers['X-CG-API-Key'] = api_key
+            headers['X-CG-Demo-API-Key'] = api_key
+            print(f"[CoinGecko] Using API key for price history: {api_key[:10]}...")
+        
+        resp = requests.get(url, params=params, headers=headers, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        prices = data.get('prices', [])
+        return jsonify({'status': 'success', 'prices': prices})
+    except requests.HTTPError as e:
+        print(f"[CoinGecko] HTTP error for price history: {resp.status_code} - {resp.text}")
+        return jsonify({'status': 'error', 'message': f'CoinGecko API error: {str(e)}'}), resp.status_code
+    except Exception as e:
+        print(f"[CoinGecko] Error fetching price history: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
     # Production settings for Render
