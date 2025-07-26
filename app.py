@@ -24,6 +24,17 @@ def handle_exception(e):
         "details": str(e)
     }), 500
 
+@app.errorhandler(ImportError)
+def handle_import_error(e):
+    import traceback
+    print(f"Import error caught: {str(e)}")
+    print(traceback.format_exc())
+    return jsonify({
+        "status": "error",
+        "message": "Module import error",
+        "details": str(e)
+    }), 500
+
 @app.errorhandler(404)
 def not_found(e):
     return jsonify({

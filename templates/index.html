@@ -346,6 +346,13 @@ border-image-slice: 1;
                 if (maxSwingEnabled) url += `&max_swing=${encodeURIComponent(maxSwing)}`;
                 if (fluctThresholdEnabled) url += `&fluct_threshold=${encodeURIComponent(fluctThreshold)}`;
                 const resp = await fetch(url);
+                
+                // Check if response is JSON
+                const contentType = resp.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    throw new Error(`Server returned ${resp.status}: ${resp.statusText}. Expected JSON but got ${contentType || 'unknown content type'}`);
+                }
+                
                 const data = await resp.json();
                 document.getElementById('loading').style.display = 'none';
                 progressBarRow.style.display = 'none';
@@ -534,6 +541,13 @@ async function loadCoinChart(coinId, days, ids) {
     chartDiv.innerHTML = '<div class="text-center my-4"><div class="spinner-border text-info"></div><div>Loading price data...</div></div>';
     try {
         const resp = await fetch(`/price_history?coin_id=${encodeURIComponent(coinId)}&days=${days}`);
+        
+        // Check if response is JSON
+        const contentType = resp.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            throw new Error(`Server returned ${resp.status}: ${resp.statusText}. Expected JSON but got ${contentType || 'unknown content type'}`);
+        }
+        
         const data = await resp.json();
         if (data.status === 'success') {
             const prices = data.prices;

@@ -1,9 +1,9 @@
+import os
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
 import plotly.express as px
 import time
-import os
 
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
 
