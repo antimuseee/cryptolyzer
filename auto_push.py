@@ -29,6 +29,15 @@ def auto_push():
         print("📝 No changes to commit")
         return True
     
+    # Show what files are being changed
+    changed_files = status_result.stdout.strip().split('\n')
+    print(f"📁 Files to commit: {len(changed_files)}")
+    for file in changed_files[:5]:  # Show first 5 files
+        if file.strip():
+            print(f"   • {file[3:]}")  # Remove status prefix
+    if len(changed_files) > 5:
+        print(f"   ... and {len(changed_files) - 5} more files")
+    
     # Add all changes
     if not run_command("git add .", "Added changes"):
         return False
@@ -46,6 +55,7 @@ def auto_push():
         return False
     
     print("🎉 Auto-push completed successfully!")
+    print("✅ Changes have been pushed to the repository!")
     return True
 
 if __name__ == "__main__":
