@@ -4,6 +4,7 @@ import requests
 import os
 from dotenv import load_dotenv
 from cryptolyzer import analyze as cryptolyzer_analyze, get_top_coins, get_price_history
+import pandas as pd
 
 # Load environment variables from .env file
 load_dotenv()
@@ -142,6 +143,81 @@ def price_history():
         return jsonify({'status': 'error', 'message': f'CoinGecko API error: {str(e)}'}), resp.status_code
     except Exception as e:
         print(f"[CoinGecko] Error fetching price history: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/detailed_analysis')
+def detailed_analysis():
+    """Get detailed technical analysis for a specific coin"""
+    coin_id = request.args.get('coin_id')
+    if not coin_id:
+        return jsonify({'status': 'error', 'message': 'Missing coin_id'}), 400
+    
+    try:
+        from cryptolyzer import (
+            get_price_history, calculate_rsi, calculate_macd, 
+            calculate_bollinger_bands, calculate_moving_averages,
+            get_volume_data, analyze_volume, analyze_market_sentiment,
+            detect_candlestick_patterns, detect_support_resistance,
+            predict_price_movement, calculate_risk_metrics
+        )
+        
+        # Get price data
+        price_data = get_price_history(coin_id)['prices']
+        df = pd.DataFrame(price_data, columns=['timestamp', 'price'])
+        current_price = df['price'].iloc[-1]
+        
+        # Calculate all technical indicators
+        rsi = calculate_rsi(price_data)
+        macd_data = calculate_macd(price_data)
+        bollinger_data = calculate_bollinger_bands(price_data)
+        ma_data = calculate_moving_averages(price_data)
+        
+        # Volume analysis
+        volume_data = get_volume_data(coin_id)
+        volume_analysis = analyze_volume(volume_data)
+        
+        # Sentiment analysis
+        sentiment_data = analyze_market_sentiment(coin_id)
+        
+        # Pattern recognition
+        patterns = detect_candlestick_patterns(price_data)
+        support_resistance = detect_support_resistance(price_data)
+        
+        # ML prediction
+        ml_prediction = predict_price_movement(price_data)
+        
+        # Risk metrics
+        risk_metrics = calculate_risk_metrics(price_data, current_price)
+        
+        # Price change
+        price_change = (df['price'].iloc[-1] - df['price'].iloc[0]) / df['price'].iloc[0]
+        
+        # Volatility
+        volatility = df['price'].pct_change().std()
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'current_price': current_price,
+                'price_change': price_change,
+                'volatility': volatility,
+                'rsi': rsi,
+                'macd': macd_data,
+                'bollinger_bands': bollinger_data,
+                'moving_averages': ma_data,
+                'volume_analysis': volume_analysis,
+                'sentiment': sentiment_data,
+                'patterns': patterns,
+                'support_resistance': support_resistance,
+                'ml_prediction': ml_prediction,
+                'risk_metrics': risk_metrics
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in detailed analysis: {str(e)}")
+        print(traceback.format_exc())
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':

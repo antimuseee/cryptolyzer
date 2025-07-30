@@ -272,7 +272,10 @@ border-image-slice: 1;
             <th>Symbol</th>
             <th>Price</th>
             <th>Trend</th>
-            <th>Breakout</th>
+            <th>RSI</th>
+            <th>MACD</th>
+            <th>Volume</th>
+            <th>Risk</th>
             <th>Opportunity Score</th>
             <th>Details</th>
             <th>Graph</th>
@@ -375,16 +378,67 @@ border-image-slice: 1;
     }
     data.data.forEach(coin => {
         const explanation = coin.explanation ? coin.explanation : '-';
+        
+        // RSI color coding
+        const rsi = coin.rsi || 50;
+        let rsiColor = '#00fff7'; // neutral
+        if (rsi < 30) rsiColor = '#00ff00'; // oversold - green
+        else if (rsi > 70) rsiColor = '#ff0000'; // overbought - red
+        
+        // MACD trend color
+        const macdTrend = coin.macd_trend || 'neutral';
+        let macdColor = '#00fff7'; // neutral
+        if (macdTrend === 'bullish') macdColor = '#00ff00';
+        else if (macdTrend === 'bearish') macdColor = '#ff0000';
+        
+        // Volume trend color
+        const volumeTrend = coin.volume_trend || 'normal';
+        let volumeColor = '#00fff7'; // normal
+        if (volumeTrend === 'high') volumeColor = '#00ff00';
+        else if (volumeTrend === 'low') volumeColor = '#ff0000';
+        
+        // Risk level color
+        const riskLevel = coin.risk_level || 'medium';
+        let riskColor = '#ffaa00'; // medium
+        if (riskLevel === 'low') riskColor = '#00ff00';
+        else if (riskLevel === 'high') riskColor = '#ff0000';
+        
+        // ML prediction display
+        let mlDisplay = '-';
+        if (coin.ml_prediction) {
+            const pred = coin.ml_prediction;
+            const predColor = pred.direction === 'up' ? '#00ff00' : '#ff0000';
+            mlDisplay = `<span style="color:${predColor}">${pred.direction.toUpperCase()} ${pred.change_percent?.toFixed(1)}%</span>`;
+        }
+        
+        // Patterns display
+        const patterns = coin.patterns || [];
+        const patternsDisplay = patterns.length > 0 ? patterns.join(', ') : '-';
+        
         tbody.innerHTML += `
             <tr class="coin-row" style="cursor:pointer;" title="${explanation.replace(/\"/g, '&quot;')}">
                 <td>${coin.name}</td>
                 <td>${coin.symbol ? coin.symbol.toUpperCase() : ''}</td>
                 <td>$${coin.current_price ? coin.current_price.toFixed(2) : '-'}</td>
-                <td>${coin.trend || '-'}</td>
-                <td>${coin.breakout ? '<span style=\'color:#a259ff\'>Yes</span>' : 'No'}</td>
+                <td>
+                    <span style="color:${coin.trend?.includes('Uptrend') ? '#00ff00' : coin.trend?.includes('Downtrend') ? '#ff0000' : '#00fff7'}">
+                        ${coin.trend || '-'}
+                    </span>
+                </td>
+                <td><span style="color:${rsiColor}">${rsi.toFixed(1)}</span></td>
+                <td><span style="color:${macdColor}">${macdTrend.toUpperCase()}</span></td>
+                <td><span style="color:${volumeColor}">${volumeTrend.toUpperCase()}</span></td>
+                <td>
+                    <span style="color:${riskColor}" title="Risk Score: ${coin.risk_score?.toFixed(1) || 'N/A'}">
+                        ${riskLevel.toUpperCase()}
+                    </span>
+                </td>
                 <td><span class="badge bg-info text-dark">${coin.opportunity_score !== undefined ? coin.opportunity_score : '-'}</span></td>
                 <td>
                     ${coin.explanation ? `<span class="explanation-badge badge bg-secondary text-light" data-explanation="${explanation.replace(/\"/g, '&quot;')}"><i class="bi bi-info-circle"></i> Details</span>` : '-'}
+                    ${patternsDisplay !== '-' ? `<br><small style="color:#a259ff">${patternsDisplay}</small>` : ''}
+                    ${mlDisplay !== '-' ? `<br><small>${mlDisplay}</small>` : ''}
+                    <br><button class="btn btn-outline-warning btn-sm detailed-analysis-btn" data-coin-id="${coin.id}" data-coin-name="${coin.name}"><i class="bi bi-bar-chart"></i> Detailed</button>
                 </td>
                 <td>
                     ${isValidCoinGeckoId(coin.id) ? `<button class="btn btn-outline-info btn-sm view-graph-btn" data-coin-id="${coin.id}"><i class="bi bi-graph-up"></i> View Graph</button>` : `<button class="btn btn-outline-secondary btn-sm" disabled title="Chart unavailable for this coin"><i class="bi bi-graph-up"></i> View Graph</button>`}
@@ -489,6 +543,26 @@ document.getElementById('fluct-threshold-toggle').addEventListener('change', fun
     </div>
   </div>
 </div>
+
+<!-- Detailed Analysis Modal -->
+<div class="modal fade" id="detailedAnalysisModal" tabindex="-1" aria-labelledby="detailedAnalysisModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content bg-dark text-light">
+      <div class="modal-header">
+        <h5 class="modal-title" id="detailedAnalysisModalLabel">Detailed Technical Analysis</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="detailedAnalysisContent">
+          <div class="text-center">
+            <div class="spinner-border text-info"></div>
+            <div>Loading detailed analysis...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.31.1.min.js"></script>
 <script>
@@ -525,6 +599,13 @@ document.addEventListener('click', function(e) {
         const coinId = btn.getAttribute('data-coin-id');
         const coinName = btn.closest('tr').querySelector('td').innerText;
         showCoinGraph(coinId, coinName);
+    }
+    
+    const detailedBtn = e.target.closest('.detailed-analysis-btn');
+    if (detailedBtn) {
+        const coinId = detailedBtn.getAttribute('data-coin-id');
+        const coinName = detailedBtn.getAttribute('data-coin-name');
+        showDetailedAnalysis(coinId, coinName);
     }
 });
 
@@ -568,6 +649,164 @@ async function loadCoinChart(coinId, days, ids) {
     }
 }
 // --- END Graph Modal logic ---
+
+// Detailed Analysis Modal logic
+function showDetailedAnalysis(coinId, coinName) {
+    document.getElementById('detailedAnalysisModalLabel').innerText = `${coinName} - Detailed Analysis`;
+    loadDetailedAnalysis(coinId);
+    var modal = new bootstrap.Modal(document.getElementById('detailedAnalysisModal'));
+    modal.show();
+}
+
+async function loadDetailedAnalysis(coinId) {
+    const contentDiv = document.getElementById('detailedAnalysisContent');
+    contentDiv.innerHTML = '<div class="text-center"><div class="spinner-border text-info"></div><div>Loading detailed analysis...</div></div>';
+    
+    try {
+        const resp = await fetch(`/detailed_analysis?coin_id=${encodeURIComponent(coinId)}`);
+        const data = await resp.json();
+        
+        if (data.status === 'success') {
+            const analysis = data.data;
+            contentDiv.innerHTML = generateDetailedAnalysisHTML(analysis);
+        } else {
+            contentDiv.innerHTML = '<div class="alert alert-danger">Failed to load detailed analysis.</div>';
+        }
+    } catch (e) {
+        contentDiv.innerHTML = '<div class="alert alert-danger">Error loading detailed analysis: ' + e + '</div>';
+    }
+}
+
+function generateDetailedAnalysisHTML(analysis) {
+    const rsiColor = analysis.rsi < 30 ? '#00ff00' : analysis.rsi > 70 ? '#ff0000' : '#00fff7';
+    const macdColor = analysis.macd.trend === 'bullish' ? '#00ff00' : analysis.macd.trend === 'bearish' ? '#ff0000' : '#00fff7';
+    const riskColor = analysis.risk_metrics.risk_level === 'low' ? '#00ff00' : analysis.risk_metrics.risk_level === 'high' ? '#ff0000' : '#ffaa00';
+    
+    return `
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-dark border-info mb-3">
+                    <div class="card-header text-info">
+                        <h6 class="mb-0"><i class="bi bi-graph-up"></i> Price Analysis</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Current Price:</strong> $${analysis.current_price?.toFixed(2) || 'N/A'}</p>
+                        <p><strong>Price Change:</strong> <span style="color:${analysis.price_change > 0 ? '#00ff00' : '#ff0000'}">${(analysis.price_change * 100).toFixed(2)}%</span></p>
+                        <p><strong>Volatility:</strong> ${(analysis.volatility * 100).toFixed(2)}%</p>
+                    </div>
+                </div>
+                
+                <div class="card bg-dark border-warning mb-3">
+                    <div class="card-header text-warning">
+                        <h6 class="mb-0"><i class="bi bi-speedometer2"></i> Technical Indicators</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>RSI:</strong> <span style="color:${rsiColor}">${analysis.rsi?.toFixed(1) || 'N/A'}</span></p>
+                        <p><strong>MACD Trend:</strong> <span style="color:${macdColor}">${analysis.macd.trend?.toUpperCase() || 'N/A'}</span></p>
+                        <p><strong>MACD Line:</strong> ${analysis.macd.macd?.toFixed(4) || 'N/A'}</p>
+                        <p><strong>Signal Line:</strong> ${analysis.macd.signal?.toFixed(4) || 'N/A'}</p>
+                        <p><strong>Bollinger Position:</strong> ${(analysis.bollinger_bands.position * 100).toFixed(1)}%</p>
+                        <p><strong>Bollinger Squeeze:</strong> ${analysis.bollinger_bands.squeeze?.toFixed(4) || 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card bg-dark border-success mb-3">
+                    <div class="card-header text-success">
+                        <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Moving Averages</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>MA 7:</strong> $${analysis.moving_averages.ma_7?.toFixed(2) || 'N/A'}</p>
+                        <p><strong>MA 14:</strong> $${analysis.moving_averages.ma_14?.toFixed(2) || 'N/A'}</p>
+                        <p><strong>MA 21:</strong> $${analysis.moving_averages.ma_21?.toFixed(2) || 'N/A'}</p>
+                        <p><strong>MA 50:</strong> $${analysis.moving_averages.ma_50?.toFixed(2) || 'N/A'}</p>
+                        <p><strong>Golden Cross:</strong> <span style="color:${analysis.moving_averages.golden_cross ? '#00ff00' : '#ff0000'}">${analysis.moving_averages.golden_cross ? 'Yes' : 'No'}</span></p>
+                        <p><strong>Death Cross:</strong> <span style="color:${analysis.moving_averages.death_cross ? '#ff0000' : '#00ff00'}">${analysis.moving_averages.death_cross ? 'Yes' : 'No'}</span></p>
+                    </div>
+                </div>
+                
+                <div class="card bg-dark border-danger mb-3">
+                    <div class="card-header text-danger">
+                        <h6 class="mb-0"><i class="bi bi-shield-exclamation"></i> Risk Analysis</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Risk Level:</strong> <span style="color:${riskColor}">${analysis.risk_metrics.risk_level?.toUpperCase() || 'N/A'}</span></p>
+                        <p><strong>Risk Score:</strong> ${analysis.risk_metrics.risk_score?.toFixed(1) || 'N/A'}/100</p>
+                        <p><strong>VaR (95%):</strong> ${(analysis.risk_metrics.var_95 * 100).toFixed(2)}%</p>
+                        <p><strong>Max Drawdown:</strong> ${(analysis.risk_metrics.max_drawdown * 100).toFixed(2)}%</p>
+                        <p><strong>Sharpe Ratio:</strong> ${analysis.risk_metrics.sharpe_ratio?.toFixed(3) || 'N/A'}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-dark border-primary mb-3">
+                    <div class="card-header text-primary">
+                        <h6 class="mb-0"><i class="bi bi-volume-up"></i> Volume Analysis</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Current Volume:</strong> ${analysis.volume_analysis.current_volume?.toLocaleString() || 'N/A'}</p>
+                        <p><strong>Average Volume:</strong> ${analysis.volume_analysis.avg_volume?.toLocaleString() || 'N/A'}</p>
+                        <p><strong>Volume Ratio:</strong> ${analysis.volume_analysis.volume_ratio?.toFixed(2) || 'N/A'}x</p>
+                        <p><strong>Volume Change:</strong> <span style="color:${analysis.volume_analysis.volume_change > 0 ? '#00ff00' : '#ff0000'}">${(analysis.volume_analysis.volume_change * 100).toFixed(2)}%</span></p>
+                        <p><strong>Volume Trend:</strong> <span style="color:${analysis.volume_analysis.volume_trend === 'high' ? '#00ff00' : analysis.volume_analysis.volume_trend === 'low' ? '#ff0000' : '#00fff7'}">${analysis.volume_analysis.volume_trend?.toUpperCase() || 'N/A'}</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card bg-dark border-info mb-3">
+                    <div class="card-header text-info">
+                        <h6 class="mb-0"><i class="bi bi-people"></i> Sentiment Analysis</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Sentiment Score:</strong> ${analysis.sentiment.sentiment_score?.toFixed(1) || 'N/A'}/100</p>
+                        <p><strong>Reddit Subscribers:</strong> ${analysis.sentiment.reddit_subscribers?.toLocaleString() || 'N/A'}</p>
+                        <p><strong>Twitter Followers:</strong> ${analysis.sentiment.twitter_followers?.toLocaleString() || 'N/A'}</p>
+                        <p><strong>Telegram Users:</strong> ${analysis.sentiment.telegram_channel_user_count?.toLocaleString() || 'N/A'}</p>
+                        <p><strong>Community Score:</strong> ${analysis.sentiment.community_score?.toFixed(1) || 'N/A'}/100</p>
+                        <p><strong>Developer Score:</strong> ${analysis.sentiment.developer_score?.toFixed(1) || 'N/A'}/100</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card bg-dark border-warning mb-3">
+                    <div class="card-header text-warning">
+                        <h6 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Pattern Recognition</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Detected Patterns:</strong> ${analysis.patterns.length > 0 ? analysis.patterns.join(', ') : 'None detected'}</p>
+                        <p><strong>Support Levels:</strong> ${analysis.support_resistance.support.length > 0 ? analysis.support_resistance.support.map(s => '$' + s.toFixed(2)).join(', ') : 'None detected'}</p>
+                        <p><strong>Resistance Levels:</strong> ${analysis.support_resistance.resistance.length > 0 ? analysis.support_resistance.resistance.map(r => '$' + r.toFixed(2)).join(', ') : 'None detected'}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card bg-dark border-success mb-3">
+                    <div class="card-header text-success">
+                        <h6 class="mb-0"><i class="bi bi-cpu"></i> ML Prediction</h6>
+                    </div>
+                    <div class="card-body">
+                        ${analysis.ml_prediction ? `
+                            <p><strong>Predicted Price:</strong> $${analysis.ml_prediction.predicted_price?.toFixed(2) || 'N/A'}</p>
+                            <p><strong>Direction:</strong> <span style="color:${analysis.ml_prediction.direction === 'up' ? '#00ff00' : '#ff0000'}">${analysis.ml_prediction.direction?.toUpperCase() || 'N/A'}</span></p>
+                            <p><strong>Change:</strong> <span style="color:${analysis.ml_prediction.change_percent > 0 ? '#00ff00' : '#ff0000'}">${analysis.ml_prediction.change_percent?.toFixed(1)}%</span></p>
+                            <p><strong>Confidence:</strong> ${(analysis.ml_prediction.confidence * 100).toFixed(1)}%</p>
+                        ` : '<p><em>Insufficient data for ML prediction</em></p>'}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 // Global fix: forcibly remove lingering modal-backdrop and restore body state after any modal is closed
 if (typeof bootstrap !== 'undefined') {
     document.addEventListener('hidden.bs.modal', function () {
