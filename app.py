@@ -97,19 +97,24 @@ def analyze():
         max_swing = float(max_swing) if max_swing is not None else None
         fluct_threshold = float(fluct_threshold) if fluct_threshold is not None else None
         cache_key = f"{max_swing}-{fluct_threshold}-{coin_type}"
+        
+        # Check cache first
         if analyze_cache.get('data') and analyze_cache.get('params') == cache_key and now - analyze_cache['timestamp'] < CACHE_DURATION:
             return jsonify(analyze_cache['data'])
+        
         # Use enhanced analysis from cryptolyzer
         response = cryptolyzer_analyze()
+        
         analyze_cache['data'] = response.get_json()
         analyze_cache['timestamp'] = now
         analyze_cache['params'] = cache_key
         return response
+            
     except Exception as e:
         import traceback
         print(f"Error in analyze endpoint: {str(e)}")
         print(traceback.format_exc())
-        result = {"status": "error", "message": str(e)}
+        result = {"status": "error", "message": f"Analysis failed: {str(e)}"}
         analyze_cache['data'] = result
         analyze_cache['timestamp'] = time.time()
         return jsonify(result), 500
@@ -158,7 +163,7 @@ def detailed_analysis():
             calculate_bollinger_bands, calculate_moving_averages,
             get_volume_data, analyze_volume, analyze_market_sentiment,
             detect_candlestick_patterns, detect_support_resistance,
-            predict_price_movement, calculate_risk_metrics
+            predict_price_ml, calculate_risk_metrics
         )
         
         # Get price data
@@ -184,7 +189,7 @@ def detailed_analysis():
         support_resistance = detect_support_resistance(price_data)
         
         # ML prediction
-        ml_prediction = predict_price_movement(price_data)
+        ml_prediction, confidence = predict_price_ml(df)
         
         # Risk metrics
         risk_metrics = calculate_risk_metrics(price_data, current_price)
