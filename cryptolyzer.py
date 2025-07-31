@@ -39,7 +39,8 @@ def calculate_rsi(prices, period=14):
     loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
     rsi = 100 - (100 / (1 + rs))
-    return rsi.iloc[-1] if not rsi.isna().all() else 50
+    rsi_value = rsi.iloc[-1] if not pd.isna(rsi.iloc[-1]) else 50.0
+    return float(rsi_value)
 
 def calculate_macd(prices, fast=12, slow=26, signal=9):
     """Calculate MACD indicator"""
@@ -50,9 +51,9 @@ def calculate_macd(prices, fast=12, slow=26, signal=9):
     signal_line = macd_line.ewm(span=signal).mean()
     histogram = macd_line - signal_line
     return {
-        'macd': macd_line.iloc[-1],
-        'signal': signal_line.iloc[-1],
-        'histogram': histogram.iloc[-1],
+        'macd': float(macd_line.iloc[-1]) if not pd.isna(macd_line.iloc[-1]) else 0.0,
+        'signal': float(signal_line.iloc[-1]) if not pd.isna(signal_line.iloc[-1]) else 0.0,
+        'histogram': float(histogram.iloc[-1]) if not pd.isna(histogram.iloc[-1]) else 0.0,
         'trend': 'bullish' if macd_line.iloc[-1] > signal_line.iloc[-1] else 'bearish'
     }
 
@@ -73,11 +74,11 @@ def calculate_bollinger_bands(prices, period=20, std_dev=2):
         position = 0.5
     
     return {
-        'upper': upper_band.iloc[-1],
-        'middle': sma.iloc[-1],
-        'lower': lower_band.iloc[-1],
-        'position': position,
-        'squeeze': (upper_band.iloc[-1] - lower_band.iloc[-1]) / sma.iloc[-1] if not pd.isna(sma.iloc[-1]) else 0
+        'upper': float(upper_band.iloc[-1]) if not pd.isna(upper_band.iloc[-1]) else 0.0,
+        'middle': float(sma.iloc[-1]) if not pd.isna(sma.iloc[-1]) else 0.0,
+        'lower': float(lower_band.iloc[-1]) if not pd.isna(lower_band.iloc[-1]) else 0.0,
+        'position': float(position),
+        'squeeze': float((upper_band.iloc[-1] - lower_band.iloc[-1]) / sma.iloc[-1]) if not pd.isna(sma.iloc[-1]) else 0.0
     }
 
 def calculate_moving_averages(prices):
@@ -91,10 +92,10 @@ def calculate_moving_averages(prices):
     ma_50 = df['price'].rolling(50).mean().iloc[-1] if len(df) >= 50 else ma_21
     
     return {
-        'ma_7': ma_7,
-        'ma_14': ma_14,
-        'ma_21': ma_21,
-        'ma_50': ma_50,
+        'ma_7': float(ma_7) if not pd.isna(ma_7) else 0.0,
+        'ma_14': float(ma_14) if not pd.isna(ma_14) else 0.0,
+        'ma_21': float(ma_21) if not pd.isna(ma_21) else 0.0,
+        'ma_50': float(ma_50) if not pd.isna(ma_50) else 0.0,
         'golden_cross': ma_7 > ma_21,  # Short-term above long-term
         'death_cross': ma_7 < ma_21,   # Short-term below long-term
         'above_all_ma': current_price > max(ma_7, ma_14, ma_21, ma_50),
@@ -545,7 +546,8 @@ def calculate_volatility(prices):
     """Calculate volatility (standard deviation) of price changes"""
     df = pd.DataFrame(prices, columns=['timestamp', 'price'])
     df['price_change'] = df['price'].pct_change()
-    return df['price_change'].std()
+    volatility = df['price_change'].std()
+    return float(volatility) if not pd.isna(volatility) else 0.0
 
 def analyze():
     import json
@@ -735,7 +737,7 @@ def analyze():
                     'price_change': price_change,
                     'volatility': volatility,
                     'trend': trend,
-                    'breakout': breakout,
+                    'breakout': int(breakout),  # Convert boolean to int
                     'rsi': rsi,
                     'macd_trend': macd_data['trend'],
                     'bollinger_position': bollinger_data['position'],
