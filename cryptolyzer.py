@@ -277,49 +277,54 @@ def detect_support_resistance(prices):
     }
 
 # Machine Learning Prediction
-def predict_price_movement(prices, features=None):
-    """Simple ML-based price prediction"""
-    if len(prices) < 20:  # Need sufficient data
-        return None
-    
+def predict_price_ml(df):
+    """Predict future price using machine learning"""
     try:
+        if len(df) < 50:  # Need sufficient data
+            return None, 0
+        
+        # Prepare features
+        df['returns'] = df['price'].pct_change()
+        df['volatility'] = df['returns'].rolling(window=7).std()
+        df['ma_7'] = df['price'].rolling(window=7).mean()
+        df['ma_14'] = df['price'].rolling(window=14).mean()
+        df['rsi'] = calculate_rsi(df['price'])
+        
+        # Remove NaN values
+        df = df.dropna()
+        
+        if len(df) < 30:  # Still need sufficient data after cleaning
+            return None, 0
+        
         # Create features
-        df = pd.DataFrame(prices, columns=['timestamp', 'price'])
-        df['ma_7'] = df['price'].rolling(7).mean()
-        df['ma_14'] = df['price'].rolling(14).mean()
-        df['rsi'] = calculate_rsi(prices)
-        df['volatility'] = df['price'].pct_change().rolling(7).std()
-        df['price_momentum'] = df['price'].pct_change(3)
+        features = ['returns', 'volatility', 'ma_7', 'ma_14', 'rsi']
+        X = df[features].values[:-1]  # All but last row
+        y = df['price'].values[1:]    # All but first row
         
-        # Prepare training data
-        feature_cols = ['ma_7', 'ma_14', 'rsi', 'volatility', 'price_momentum']
-        X = df[feature_cols].dropna()
-        y = df['price'].shift(-1).dropna()  # Next day's price
+        # Ensure X and y have same length
+        min_len = min(len(X), len(y))
+        X = X[:min_len]
+        y = y[:min_len]
         
-        # Align X and y
-        X = X[:-1]
-        y = y[1:]
+        if len(X) < 20:  # Final check
+            return None, 0
         
-        if len(X) > 10:  # Need sufficient data
-            model = RandomForestRegressor(n_estimators=100, random_state=42)
-            model.fit(X, y)
-            
-            # Predict next price
-            latest_features = X.iloc[-1:].values
-            prediction = model.predict(latest_features)[0]
-            current_price = df['price'].iloc[-1]
-            
-            return {
-                'predicted_price': prediction,
-                'confidence': model.score(X, y),
-                'direction': 'up' if prediction > current_price else 'down',
-                'change_percent': ((prediction - current_price) / current_price) * 100
-            }
+        # Train model
+        model = RandomForestRegressor(n_estimators=50, random_state=42)
+        model.fit(X, y)
+        
+        # Predict next price
+        last_features = df[features].iloc[-1].values.reshape(1, -1)
+        prediction = model.predict(last_features)[0]
+        
+        # Calculate confidence based on model performance
+        confidence = min(0.95, model.score(X, y) + 0.5)
+        
+        return prediction, confidence
+        
     except Exception as e:
         print(f"ML prediction error: {e}")
-        return None
-    
-    return None
+        return None, 0
 
 # Risk Management
 def calculate_risk_metrics(prices, current_price):
@@ -560,8 +565,18 @@ def analyze():
         for coin in coins:  # Analyze up to 25 coins for performance
             try:
                 # Get price history
-                price_data = get_price_history(coin['id'])['prices']
+                price_data = get_price_history(coin['id'])
+                if not price_data or 'prices' not in price_data:
+                    print(f"Error analyzing {coin['name']}: Invalid price data")
+                    continue
+                    
+                price_data = price_data['prices']
                 df = pd.DataFrame(price_data, columns=['timestamp', 'price'])
+                
+                if len(df) < 10:  # Need sufficient data
+                    print(f"Error analyzing {coin['name']}: Insufficient price data")
+                    continue
+                    
                 current_price = df['price'].iloc[-1]
 
                 # Basic metrics
@@ -586,10 +601,24 @@ def analyze():
                 support_resistance = detect_support_resistance(price_data)
                 
                 # Machine Learning Prediction
-                ml_prediction = predict_price_movement(price_data)
+                try:
+                    ml_prediction, confidence = predict_price_ml(df)
+                except Exception as e:
+                    print(f"ML prediction error for {coin['name']}: {e}")
+                    ml_prediction, confidence = None, 0
                 
                 # Risk Management
-                risk_metrics = calculate_risk_metrics(price_data, current_price)
+                try:
+                    risk_metrics = calculate_risk_metrics(price_data, current_price)
+                    risk_score = calculate_risk_score(
+                        risk_metrics['var_95'],
+                        risk_metrics['max_drawdown'],
+                        risk_metrics['sharpe_ratio']
+                    )
+                except Exception as e:
+                    print(f"Risk calculation error for {coin['name']}: {e}")
+                    risk_metrics = {'var_95': 0, 'max_drawdown': 0, 'sharpe_ratio': 0}
+                    risk_score = 0.5
 
                 # Enhanced Trend Detection
                 if ma_data['golden_cross'] and bollinger_data['position'] > 0.7:
@@ -657,9 +686,9 @@ def analyze():
                     explanation.append(f'Pattern detected: {", ".join(patterns)}')
                 
                 # ML prediction bonus
-                if ml_prediction and ml_prediction['direction'] == 'up':
+                if ml_prediction is not None:
                     score_components.append(0.3)
-                    explanation.append(f'ML predicts {ml_prediction["change_percent"]:.1f}% increase')
+                    explanation.append(f'ML predicts {ml_prediction:.2f} with confidence {confidence:.2f}')
                 
                 # Risk adjustment
                 if risk_metrics.get('risk_level') == 'high':
