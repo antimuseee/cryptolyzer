@@ -405,7 +405,7 @@ border-image-slice: 1;
         
         // ML prediction display
         let mlDisplay = '-';
-        if (coin.ml_prediction) {
+        if (coin.ml_prediction && coin.ml_prediction.direction) {
             const pred = coin.ml_prediction;
             const predColor = pred.direction === 'up' ? '#00ff00' : '#ff0000';
             mlDisplay = `<span style="color:${predColor}">${pred.direction.toUpperCase()} ${pred.change_percent?.toFixed(1)}%</span>`;
@@ -418,7 +418,7 @@ border-image-slice: 1;
         tbody.innerHTML += `
             <tr class="coin-row" style="cursor:pointer;" title="${explanation.replace(/\"/g, '&quot;')}">
                 <td>${coin.name}</td>
-                <td>${coin.symbol ? coin.symbol.toUpperCase() : ''}</td>
+                <td>${coin.symbol && coin.symbol.toUpperCase ? coin.symbol.toUpperCase() : ''}</td>
                 <td>$${coin.current_price ? coin.current_price.toFixed(2) : '-'}</td>
                 <td>
                     <span style="color:${coin.trend?.includes('Uptrend') ? '#00ff00' : coin.trend?.includes('Downtrend') ? '#ff0000' : '#00fff7'}">
@@ -426,11 +426,11 @@ border-image-slice: 1;
                     </span>
                 </td>
                 <td><span style="color:${rsiColor}">${rsi.toFixed(1)}</span></td>
-                <td><span style="color:${macdColor}">${macdTrend.toUpperCase()}</span></td>
-                <td><span style="color:${volumeColor}">${volumeTrend.toUpperCase()}</span></td>
+                <td><span style="color:${macdColor}">${macdTrend && macdTrend.toUpperCase ? macdTrend.toUpperCase() : 'N/A'}</span></td>
+                <td><span style="color:${volumeColor}">${volumeTrend && volumeTrend.toUpperCase ? volumeTrend.toUpperCase() : 'N/A'}</span></td>
                 <td>
                     <span style="color:${riskColor}" title="Risk Score: ${coin.risk_score?.toFixed(1) || 'N/A'}">
-                        ${riskLevel.toUpperCase()}
+                        ${riskLevel && riskLevel.toUpperCase ? riskLevel.toUpperCase() : 'N/A'}
                     </span>
                 </td>
                 <td><span class="badge bg-info text-dark">${coin.opportunity_score !== undefined ? coin.opportunity_score : '-'}</span></td>
@@ -702,7 +702,7 @@ function generateDetailedAnalysisHTML(analysis) {
                     </div>
                     <div class="card-body">
                         <p><strong>RSI:</strong> <span style="color:${rsiColor}">${analysis.rsi?.toFixed(1) || 'N/A'}</span></p>
-                        <p><strong>MACD Trend:</strong> <span style="color:${macdColor}">${analysis.macd.trend?.toUpperCase() || 'N/A'}</span></p>
+                        <p><strong>MACD Trend:</strong> <span style="color:${macdColor}">${analysis.macd.trend && analysis.macd.trend.toUpperCase ? analysis.macd.trend.toUpperCase() : 'N/A'}</span></p>
                         <p><strong>MACD Line:</strong> ${analysis.macd.macd?.toFixed(4) || 'N/A'}</p>
                         <p><strong>Signal Line:</strong> ${analysis.macd.signal?.toFixed(4) || 'N/A'}</p>
                         <p><strong>Bollinger Position:</strong> ${(analysis.bollinger_bands.position * 100).toFixed(1)}%</p>
@@ -731,7 +731,7 @@ function generateDetailedAnalysisHTML(analysis) {
                         <h6 class="mb-0"><i class="bi bi-shield-exclamation"></i> Risk Analysis</h6>
                     </div>
                     <div class="card-body">
-                        <p><strong>Risk Level:</strong> <span style="color:${riskColor}">${analysis.risk_metrics.risk_level?.toUpperCase() || 'N/A'}</span></p>
+                        <p><strong>Risk Level:</strong> <span style="color:${riskColor}">${analysis.risk_metrics.risk_level && analysis.risk_metrics.risk_level.toUpperCase ? analysis.risk_metrics.risk_level.toUpperCase() : 'N/A'}</span></p>
                         <p><strong>Risk Score:</strong> ${analysis.risk_metrics.risk_score?.toFixed(1) || 'N/A'}/100</p>
                         <p><strong>VaR (95%):</strong> ${(analysis.risk_metrics.var_95 * 100).toFixed(2)}%</p>
                         <p><strong>Max Drawdown:</strong> ${(analysis.risk_metrics.max_drawdown * 100).toFixed(2)}%</p>
@@ -752,7 +752,7 @@ function generateDetailedAnalysisHTML(analysis) {
                         <p><strong>Average Volume:</strong> ${analysis.volume_analysis.avg_volume?.toLocaleString() || 'N/A'}</p>
                         <p><strong>Volume Ratio:</strong> ${analysis.volume_analysis.volume_ratio?.toFixed(2) || 'N/A'}x</p>
                         <p><strong>Volume Change:</strong> <span style="color:${analysis.volume_analysis.volume_change > 0 ? '#00ff00' : '#ff0000'}">${(analysis.volume_analysis.volume_change * 100).toFixed(2)}%</span></p>
-                        <p><strong>Volume Trend:</strong> <span style="color:${analysis.volume_analysis.volume_trend === 'high' ? '#00ff00' : analysis.volume_analysis.volume_trend === 'low' ? '#ff0000' : '#00fff7'}">${analysis.volume_analysis.volume_trend?.toUpperCase() || 'N/A'}</span></p>
+                        <p><strong>Volume Trend:</strong> <span style="color:${analysis.volume_analysis.volume_trend === 'high' ? '#00ff00' : analysis.volume_analysis.volume_trend === 'low' ? '#ff0000' : '#00fff7'}">${analysis.volume_analysis.volume_trend && analysis.volume_analysis.volume_trend.toUpperCase ? analysis.volume_analysis.volume_trend.toUpperCase() : 'N/A'}</span></p>
                     </div>
                 </div>
             </div>
@@ -796,7 +796,7 @@ function generateDetailedAnalysisHTML(analysis) {
                     <div class="card-body">
                         ${analysis.ml_prediction ? `
                             <p><strong>Predicted Price:</strong> $${analysis.ml_prediction.predicted_price?.toFixed(2) || 'N/A'}</p>
-                            <p><strong>Direction:</strong> <span style="color:${analysis.ml_prediction.direction === 'up' ? '#00ff00' : '#ff0000'}">${analysis.ml_prediction.direction?.toUpperCase() || 'N/A'}</span></p>
+                            <p><strong>Direction:</strong> <span style="color:${analysis.ml_prediction.direction === 'up' ? '#00ff00' : '#ff0000'}">${analysis.ml_prediction.direction && analysis.ml_prediction.direction.toUpperCase ? analysis.ml_prediction.direction.toUpperCase() : 'N/A'}</span></p>
                             <p><strong>Change:</strong> <span style="color:${analysis.ml_prediction.change_percent > 0 ? '#00ff00' : '#ff0000'}">${analysis.ml_prediction.change_percent?.toFixed(1)}%</span></p>
                             <p><strong>Confidence:</strong> ${(analysis.ml_prediction.confidence * 100).toFixed(1)}%</p>
                         ` : '<p><em>Insufficient data for ML prediction</em></p>'}
