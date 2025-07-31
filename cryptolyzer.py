@@ -278,26 +278,23 @@ def detect_support_resistance(prices):
 
 # Machine Learning Prediction
 def predict_price_ml(df):
-    """Predict future price using machine learning"""
+    """Predict future price using simplified ML approach"""
     try:
-        if len(df) < 50:  # Need sufficient data
+        if len(df) < 20:  # Reduced minimum data requirement
             return None, 0
         
-        # Prepare features
+        # Simple features to avoid memory issues
         df['returns'] = df['price'].pct_change()
-        df['volatility'] = df['returns'].rolling(window=7).std()
         df['ma_7'] = df['price'].rolling(window=7).mean()
-        df['ma_14'] = df['price'].rolling(window=14).mean()
-        df['rsi'] = calculate_rsi(df['price'])
         
         # Remove NaN values
         df = df.dropna()
         
-        if len(df) < 30:  # Still need sufficient data after cleaning
+        if len(df) < 10:  # Further reduced requirement
             return None, 0
         
-        # Create features
-        features = ['returns', 'volatility', 'ma_7', 'ma_14', 'rsi']
+        # Use only 2 features to reduce complexity
+        features = ['returns', 'ma_7']
         X = df[features].values[:-1]  # All but last row
         y = df['price'].values[1:]    # All but first row
         
@@ -306,11 +303,11 @@ def predict_price_ml(df):
         X = X[:min_len]
         y = y[:min_len]
         
-        if len(X) < 20:  # Final check
+        if len(X) < 5:  # Very minimal requirement
             return None, 0
         
-        # Train model
-        model = RandomForestRegressor(n_estimators=50, random_state=42)
+        # Use simpler model with fewer estimators
+        model = RandomForestRegressor(n_estimators=10, random_state=42, max_depth=5)
         model.fit(X, y)
         
         # Predict next price
@@ -318,7 +315,7 @@ def predict_price_ml(df):
         prediction = model.predict(last_features)[0]
         
         # Calculate confidence based on model performance
-        confidence = min(0.95, model.score(X, y) + 0.5)
+        confidence = min(0.8, model.score(X, y) + 0.3)
         
         return prediction, confidence
         
@@ -493,17 +490,25 @@ def get_price_history(coin_id, days=7):
     
     print(f"[CoinGecko] Fetching price history for {coin_id}: {url} params={params}")
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=30)
+        response = requests.get(url, params=params, headers=headers, timeout=15)  # Reduced timeout
         if response.status_code == 200:
-            return response.json()
+            data = response.json()
+            if data and 'prices' in data and len(data['prices']) > 0:
+                return data
+            else:
+                print(f"[CoinGecko] Invalid data returned for {coin_id}")
+                return get_fallback_price_history(coin_id, days)
         else:
-            print(f"[CoinGecko] Error fetching price history: {response.text}")
+            print(f"[CoinGecko] Error status {response.status_code} for {coin_id}: {response.text}")
             return get_fallback_price_history(coin_id, days)
+    except requests.exceptions.Timeout:
+        print(f"[CoinGecko] Timeout for {coin_id}")
+        return get_fallback_price_history(coin_id, days)
     except requests.exceptions.RequestException as e:
-        print(f"[CoinGecko] Request error for price history: {str(e)}")
+        print(f"[CoinGecko] Request error for {coin_id}: {str(e)}")
         return get_fallback_price_history(coin_id, days)
     except Exception as e:
-        print(f"[CoinGecko] Unexpected error for price history: {str(e)}")
+        print(f"[CoinGecko] Unexpected error for {coin_id}: {str(e)}")
         return get_fallback_price_history(coin_id, days)
 
 def get_fallback_price_history(coin_id, days=7):
@@ -562,7 +567,7 @@ def analyze():
         raw_scores = []
         coin_results = []
         
-        for coin in coins:  # Analyze up to 25 coins for performance
+        for coin in coins[:15]:  # Analyze only first 15 coins to prevent memory issues
             try:
                 # Get price history
                 price_data = get_price_history(coin['id'])
