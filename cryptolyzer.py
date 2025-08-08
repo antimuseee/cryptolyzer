@@ -399,8 +399,9 @@ async def fetch_single_coin_data(session, coin_id):
         return {'id': coin_id, 'data': None}
 
 def get_top_coins():
-    """Get top coins by market cap (with API key if available)"""
+    """Get top coins by market cap (aim for 100 items, paginate if needed)"""
     url = f"{COINGECKO_API_URL}/coins/markets"
+    target_count = 100
     params = {
         'vs_currency': 'usd',
         'order': 'market_cap_desc',
@@ -408,7 +409,7 @@ def get_top_coins():
         'page': 1,
         'sparkline': False
     }
-    
+
     # Add API key to headers if available
     headers = {}
     if COINGECKO_API_KEY:
@@ -416,21 +417,37 @@ def get_top_coins():
         headers['X-CG-API-Key'] = COINGECKO_API_KEY
         headers['X-CG-Demo-API-Key'] = COINGECKO_API_KEY
         print(f"[CoinGecko] Using API key for enhanced rate limits")
-    
-    print(f"[CoinGecko] Fetching top coins: {url} params={params}")
+
+    print(f"[CoinGecko] Fetching top coins (target={target_count}): {url} params={params}")
     print(f"[CoinGecko] Headers: {headers}")
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=30)
-        print(f"[CoinGecko] Status: {response.status_code}")
-        if response.status_code == 200:
-            data = response.json()
+        collected = []
+        # Determine how many pages we need to hit to reach target_count
+        per_page = params['per_page']
+        max_pages = (target_count + per_page - 1) // per_page
+        for page in range(1, max_pages + 1):
+            params['page'] = page
+            response = requests.get(url, params=params, headers=headers, timeout=30)
+            print(f"[CoinGecko] Page {page} status: {response.status_code}")
+            if response.status_code != 200:
+                print(f"[CoinGecko] Error: {response.text}")
+                break
+            data = response.json() or []
             if not data:
-                print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
-                return get_fallback_coins()
-            return data
-        else:
-            print(f"[CoinGecko] Error: {response.text}")
+                print("[CoinGecko] Warning: Empty page received; stopping pagination.")
+                break
+            collected.extend(data)
+            if len(collected) >= target_count:
+                break
+            # Gentle delay to be polite to the API when paginating without a key
+            if not COINGECKO_API_KEY:
+                time.sleep(1)
+
+        if not collected:
+            print(f"[CoinGecko] Warning: Empty data returned. Possible rate limit or API error.")
             return get_fallback_coins()
+
+        return collected[:target_count]
     except requests.exceptions.RequestException as e:
         print(f"[CoinGecko] Request error: {str(e)}")
         return get_fallback_coins()
@@ -569,8 +586,8 @@ def analyze():
         raw_scores = []
         coin_results = []
         
-        # Analyze only first 10 coins to prevent timeouts
-        for coin in coins[:10]:
+        # Analyze up to 100 coins
+        for coin in coins[:100]:
             try:
                 # Get price history with better error handling
                 price_data = get_price_history(coin['id'])
