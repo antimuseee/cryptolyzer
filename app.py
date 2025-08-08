@@ -1,4 +1,5 @@
 from flask import Flask, render_template, jsonify, request
+from werkzeug.exceptions import HTTPException
 import time
 import requests
 import os
@@ -49,6 +50,42 @@ def internal_error(e):
         "status": "error",
         "message": "Internal server error"
     }), 500
+
+# Ensure JSON for common gateway/timeouts
+@app.errorhandler(502)
+def bad_gateway(e):
+    return jsonify({
+        "status": "error",
+        "message": "Bad gateway",
+        "details": str(e)
+    }), 502
+
+@app.errorhandler(503)
+def service_unavailable(e):
+    return jsonify({
+        "status": "error",
+        "message": "Service unavailable",
+        "details": str(e)
+    }), 503
+
+@app.errorhandler(504)
+def gateway_timeout(e):
+    return jsonify({
+        "status": "error",
+        "message": "Gateway timeout",
+        "details": str(e)
+    }), 504
+
+# Fallback to JSON for any HTTPException not explicitly handled
+@app.errorhandler(HTTPException)
+def handle_http_exception(e: HTTPException):
+    response = e.get_response()
+    return jsonify({
+        "status": "error",
+        "message": e.name,
+        "code": e.code,
+        "details": e.description,
+    }), e.code
 
 # Simple in-memory cache for analyze endpoint
 analyze_cache = {

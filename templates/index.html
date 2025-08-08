@@ -351,12 +351,23 @@ border-image-slice: 1;
                 const resp = await fetch(url);
                 
                 // Check if response is JSON
-                const contentType = resp.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    throw new Error(`Server returned ${resp.status}: ${resp.statusText}. Expected JSON but got ${contentType || 'unknown content type'}`);
+                let data;
+                try {
+                    const contentType = resp.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        // Try to parse JSON anyway; if fails, synthesize an error JSON
+                        const text = await resp.text();
+                        try {
+                            data = JSON.parse(text);
+                        } catch {
+                            throw new Error(`Server returned ${resp.status}: ${resp.statusText}. Expected JSON but got ${contentType || 'unknown'}\nBody: ${text?.slice(0, 200) || ''}`);
+                        }
+                    } else {
+                        data = await resp.json();
+                    }
+                } catch (parseErr) {
+                    throw parseErr;
                 }
-                
-                const data = await resp.json();
                 document.getElementById('loading').style.display = 'none';
                 progressBarRow.style.display = 'none';
                 progressBarLoadingText.style.display = 'none';
@@ -624,12 +635,22 @@ async function loadCoinChart(coinId, days, ids) {
         const resp = await fetch(`/price_history?coin_id=${encodeURIComponent(coinId)}&days=${days}`);
         
         // Check if response is JSON
-        const contentType = resp.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            throw new Error(`Server returned ${resp.status}: ${resp.statusText}. Expected JSON but got ${contentType || 'unknown content type'}`);
-        }
-        
-        const data = await resp.json();
+                let data;
+                try {
+                    const contentType = resp.headers.get('content-type') || '';
+                    if (!contentType.includes('application/json')) {
+                        const text = await resp.text();
+                        try {
+                            data = JSON.parse(text);
+                        } catch {
+                            throw new Error(`Server returned ${resp.status}: ${resp.statusText}. Expected JSON but got ${contentType || 'unknown'}\nBody: ${text?.slice(0, 200) || ''}`);
+                        }
+                    } else {
+                        data = await resp.json();
+                    }
+                } catch (parseErr) {
+                    throw parseErr;
+                }
         if (data.status === 'success') {
             const prices = data.prices;
             const x = prices.map(p => new Date(p[0]));
