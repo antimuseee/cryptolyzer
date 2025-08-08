@@ -586,20 +586,43 @@ def analyze():
         raw_scores = []
         coin_results = []
         
-        # Analyze up to 100 coins
-        for coin in coins[:100]:
+        # Prepare concurrent fetch of price data when API key is present
+        price_data_by_id = {}
+        coin_batch = coins[:100]
+        if COINGECKO_API_KEY:
             try:
-                # Get price history with better error handling
-                price_data = get_price_history(coin['id'])
-                if not price_data or 'prices' not in price_data:
-                    print(f"Error analyzing {coin['name']}: Invalid price data")
+                coin_ids = [c.get('id', '') for c in coin_batch if c.get('id')]
+                if coin_ids:
+                    fetched = asyncio.run(fetch_coin_data_async(coin_ids))
+                    for item in fetched:
+                        cid = item.get('id') if isinstance(item, dict) else None
+                        cdata = item.get('data') if isinstance(item, dict) else None
+                        if cid and cdata and 'prices' in cdata and len(cdata['prices']) > 0:
+                            price_data_by_id[cid] = cdata
+            except Exception as e:
+                print(f"Concurrent fetch error, falling back to sequential: {e}")
+
+        # Analyze up to 100 coins
+        for coin in coin_batch:
+            try:
+                # Get price history
+                price_history_payload = None
+                if COINGECKO_API_KEY and price_data_by_id.get(coin['id']):
+                    price_history_payload = price_data_by_id[coin['id']]
+                else:
+                    ph = get_price_history(coin['id'])
+                    if ph and isinstance(ph, dict):
+                        price_history_payload = ph
+
+                if not price_history_payload or 'prices' not in price_history_payload:
+                    print(f"Error analyzing {coin.get('name','?')}: Invalid price data")
                     continue
-                    
-                price_data = price_data['prices']
+
+                price_data = price_history_payload['prices']
                 df = pd.DataFrame(price_data, columns=['timestamp', 'price'])
                 
                 if len(df) < 10:  # Need sufficient data
-                    print(f"Error analyzing {coin['name']}: Insufficient price data")
+                    print(f"Error analyzing {coin.get('name','?')}: Insufficient price data")
                     continue
                     
                 current_price = df['price'].iloc[-1]
@@ -614,11 +637,28 @@ def analyze():
                 bollinger_data = calculate_bollinger_bands(price_data)
                 ma_data = calculate_moving_averages(price_data)
                 
-                # Volume Analysis (simplified to prevent timeouts)
+                # Volume Analysis (use real volumes when available via API key)
                 volume_analysis = {'volume_trend': 'normal'}
+                try:
+                    volumes = None
+                    if COINGECKO_API_KEY and isinstance(price_history_payload, dict) and 'total_volumes' in price_history_payload:
+                        volumes = price_history_payload.get('total_volumes')
+                    elif COINGECKO_API_KEY:
+                        volumes = get_volume_data(coin['id'])
+                    if volumes:
+                        volume_analysis = analyze_volume(volumes)
+                except Exception as e:
+                    print(f"Volume analysis error for {coin.get('name','?')}: {e}")
                 
-                # Market Sentiment (simplified to prevent timeouts)
-                sentiment_data = {'sentiment_score': 50}
+                # Market Sentiment (use real sentiment when API key is present)
+                if COINGECKO_API_KEY:
+                    try:
+                        sentiment_data = analyze_market_sentiment(coin['id']) or {'sentiment_score': 50}
+                    except Exception as e:
+                        print(f"Sentiment error for {coin.get('name','?')}: {e}")
+                        sentiment_data = {'sentiment_score': 50}
+                else:
+                    sentiment_data = {'sentiment_score': 50}
                 
                 # Pattern Recognition
                 patterns = detect_candlestick_patterns(price_data)
