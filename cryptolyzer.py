@@ -29,6 +29,12 @@ else:
 
 # Increased limits with API key
 COINS_PER_REQUEST = 100 if COINGECKO_API_KEY else 25
+# Concurrency limit to avoid overloading API/CPU
+CONCURRENT_PRICE_FETCH_LIMIT = 15
+MAX_ANALYZED_COINS = 100
+TOTAL_ANALYZE_TIME_BUDGET_SEC = 25
+ENABLE_ML_FOR_BULK = False
+SENTIMENT_FIRST_N = 10
 
 # Technical Analysis Functions
 def calculate_rsi(prices, period=14):
@@ -372,12 +378,15 @@ def calculate_risk_score(var_95, max_drawdown, sharpe_ratio):
 
 # Enhanced Data Collection
 async def fetch_coin_data_async(coin_ids):
-    """Fetch multiple coin data concurrently"""
-    async with aiohttp.ClientSession() as session:
-        tasks = []
-        for coin_id in coin_ids:
-            task = fetch_single_coin_data(session, coin_id)
-            tasks.append(task)
+    """Fetch multiple coin data concurrently with a sensible concurrency limit"""
+    timeout = aiohttp.ClientTimeout(total=25)
+    connector = aiohttp.TCPConnector(limit=CONCURRENT_PRICE_FETCH_LIMIT)
+    sem = asyncio.Semaphore(CONCURRENT_PRICE_FETCH_LIMIT)
+    async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+        async def bounded(coin_id):
+            async with sem:
+                return await fetch_single_coin_data(session, coin_id)
+        tasks = [bounded(coin_id) for coin_id in coin_ids]
         return await asyncio.gather(*tasks)
 
 async def fetch_single_coin_data(session, coin_id):
@@ -588,7 +597,7 @@ def analyze():
         
         # Prepare concurrent fetch of price data when API key is present
         price_data_by_id = {}
-        coin_batch = coins[:100]
+        coin_batch = coins[:MAX_ANALYZED_COINS]
         if COINGECKO_API_KEY:
             try:
                 coin_ids = [c.get('id', '') for c in coin_batch if c.get('id')]
@@ -603,7 +612,7 @@ def analyze():
                 print(f"Concurrent fetch error, falling back to sequential: {e}")
 
         # Analyze up to 100 coins
-        for coin in coin_batch:
+        for idx, coin in enumerate(coin_batch):
             try:
                 # Get price history
                 price_history_payload = None
@@ -650,8 +659,8 @@ def analyze():
                 except Exception as e:
                     print(f"Volume analysis error for {coin.get('name','?')}: {e}")
                 
-                # Market Sentiment (use real sentiment when API key is present)
-                if COINGECKO_API_KEY:
+                # Market Sentiment (limit to first N to avoid timeouts)
+                if COINGECKO_API_KEY and idx < SENTIMENT_FIRST_N:
                     try:
                         sentiment_data = analyze_market_sentiment(coin['id']) or {'sentiment_score': 50}
                     except Exception as e:
@@ -664,12 +673,14 @@ def analyze():
                 patterns = detect_candlestick_patterns(price_data)
                 support_resistance = detect_support_resistance(price_data)
                 
-                # Machine Learning Prediction (simplified)
-                try:
-                    ml_prediction, confidence = predict_price_ml(df)
-                except Exception as e:
-                    print(f"ML prediction error for {coin['name']}: {e}")
-                    ml_prediction, confidence = None, 0
+                # Machine Learning Prediction (disabled for bulk by default to prevent timeouts)
+                ml_prediction, confidence = (None, 0)
+                if ENABLE_ML_FOR_BULK:
+                    try:
+                        ml_prediction, confidence = predict_price_ml(df)
+                    except Exception as e:
+                        print(f"ML prediction error for {coin.get('name','?')}: {e}")
+                        ml_prediction, confidence = None, 0
                 
                 # Risk Management (simplified)
                 try:
@@ -811,6 +822,10 @@ def analyze():
                 })
                 raw_scores.append(base_score)
                 
+                # Respect total time budget to prevent worker timeouts
+                if time.time() - start_time > TOTAL_ANALYZE_TIME_BUDGET_SEC:
+                    print("[Analyze] Time budget exceeded; returning partial results")
+                    break
             except Exception as e:
                 print(f"Error analyzing {coin['name']}: {str(e)}")
                 continue

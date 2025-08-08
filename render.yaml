@@ -3,7 +3,7 @@ services:
     name: cryptolyzer-app
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    startCommand: "gunicorn app:app --timeout 120 --workers 2 --threads 2"
     plan: free
     envVars:
       - key: COINGECKO_API_KEY
