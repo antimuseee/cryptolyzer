@@ -225,8 +225,21 @@ def detailed_analysis():
         patterns = detect_candlestick_patterns(price_data)
         support_resistance = detect_support_resistance(price_data)
         
-        # ML prediction
-        ml_prediction, confidence = predict_price_ml(df)
+        # ML prediction (robust: construct object only if model returns valid result)
+        ml_prediction_obj = None
+        try:
+            ml_prediction, confidence = predict_price_ml(df)
+            if ml_prediction is not None:
+                predicted_price = float(ml_prediction)
+                change_percent = (predicted_price - current_price) / current_price if current_price else 0.0
+                ml_prediction_obj = {
+                    'predicted_price': predicted_price,
+                    'direction': 'up' if change_percent >= 0 else 'down',
+                    'change_percent': change_percent * 100.0,
+                    'confidence': float(confidence or 0.0)
+                }
+        except Exception as _:
+            ml_prediction_obj = None
         
         # Risk metrics
         risk_metrics = calculate_risk_metrics(price_data, current_price)
@@ -251,7 +264,7 @@ def detailed_analysis():
                 'sentiment': sentiment_data,
                 'patterns': patterns,
                 'support_resistance': support_resistance,
-                'ml_prediction': ml_prediction,
+                'ml_prediction': ml_prediction_obj,
                 'risk_metrics': risk_metrics
             }
         })
