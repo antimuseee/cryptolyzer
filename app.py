@@ -14,6 +14,50 @@ app = Flask(__name__)
 
 COINGECKO_URL = "https://api.coingecko.com/api/v3"
 
+# Helper: convert numpy/pandas types to JSON-serializable Python primitives
+def json_safe(obj):
+    try:
+        import numpy as _np  # local import to avoid global dependency issues
+        numpy_generic = _np.generic
+    except Exception:  # numpy may not be available in all contexts
+        numpy_generic = tuple()
+
+    if isinstance(obj, dict):
+        return {str(k): json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple, set)):
+        return [json_safe(v) for v in obj]
+    # Unwrap numpy/pandas scalars
+    if hasattr(obj, 'item'):
+        try:
+            return json_safe(obj.item())
+        except Exception:
+            pass
+    # Explicitly coerce booleans that may be numpy.bool_
+    try:
+        if isinstance(obj, bool) or type(obj).__name__ == 'bool_':
+            return bool(obj)
+    except Exception:
+        pass
+    # Native JSON types
+    if obj is None or isinstance(obj, (int, float, str)):
+        return obj
+    # Try float coercion for numpy numbers
+    try:
+        return float(obj)
+    except Exception:
+        return str(obj)
+
+# Helper: stable JSON response that avoids provider type issues
+def safe_jsonify(obj):
+    from flask import Response
+    import json as _json
+    try:
+        serialized = _json.dumps(json_safe(obj), separators=(",", ":"))
+    except Exception:
+        # Last-resort stringify
+        serialized = _json.dumps(str(obj))
+    return Response(serialized + "\n", mimetype="application/json")
+
 # Global error handler to ensure JSON responses
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -250,7 +294,7 @@ def detailed_analysis():
         # Volatility
         volatility = df['price'].pct_change().std()
         
-        return jsonify({
+        payload = {
             'status': 'success',
             'data': {
                 'current_price': current_price,
@@ -267,7 +311,8 @@ def detailed_analysis():
                 'ml_prediction': ml_prediction_obj,
                 'risk_metrics': risk_metrics
             }
-        })
+        }
+        return safe_jsonify(payload)
         
     except Exception as e:
         import traceback

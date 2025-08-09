@@ -102,10 +102,10 @@ def calculate_moving_averages(prices):
         'ma_14': float(ma_14) if not pd.isna(ma_14) else 0.0,
         'ma_21': float(ma_21) if not pd.isna(ma_21) else 0.0,
         'ma_50': float(ma_50) if not pd.isna(ma_50) else 0.0,
-        'golden_cross': ma_7 > ma_21,  # Short-term above long-term
-        'death_cross': ma_7 < ma_21,   # Short-term below long-term
-        'above_all_ma': current_price > max(ma_7, ma_14, ma_21, ma_50),
-        'below_all_ma': current_price < min(ma_7, ma_14, ma_21, ma_50)
+        'golden_cross': bool(ma_7 > ma_21),  # ensure native bool
+        'death_cross': bool(ma_7 < ma_21),   # ensure native bool
+        'above_all_ma': bool(current_price > max(ma_7, ma_14, ma_21, ma_50)),
+        'below_all_ma': bool(current_price < min(ma_7, ma_14, ma_21, ma_50))
     }
 
 # Volume Analysis
@@ -199,13 +199,13 @@ def detect_candlestick_patterns(prices):
     df = pd.DataFrame(prices, columns=['timestamp', 'price'])
     
     # Detect patterns
-    if detect_doji(df):
+    if bool(detect_doji(df)):
         patterns.append('Doji')
-    if detect_hammer(df):
+    if bool(detect_hammer(df)):
         patterns.append('Hammer')
-    if detect_engulfing(df):
+    if bool(detect_engulfing(df)):
         patterns.append('Engulfing')
-    if detect_trend_reversal(df):
+    if bool(detect_trend_reversal(df)):
         patterns.append('Trend Reversal')
     
     return patterns
@@ -695,14 +695,14 @@ def analyze():
                     risk_metrics = {'var_95': 0, 'max_drawdown': 0, 'sharpe_ratio': 0}
                     risk_score = 0.5
 
-                # Enhanced Trend Detection
-                if ma_data['golden_cross'] and bollinger_data['position'] > 0.7:
+                # Enhanced Trend Detection (ensure native types)
+                if bool(ma_data['golden_cross']) and float(bollinger_data['position']) > 0.7:
                     trend = 'Strong Uptrend'
-                elif ma_data['death_cross'] and bollinger_data['position'] < 0.3:
+                elif bool(ma_data['death_cross']) and float(bollinger_data['position']) < 0.3:
                     trend = 'Strong Downtrend'
-                elif ma_data['above_all_ma']:
+                elif bool(ma_data['above_all_ma']):
                     trend = 'Uptrend'
-                elif ma_data['below_all_ma']:
+                elif bool(ma_data['below_all_ma']):
                     trend = 'Downtrend'
                 else:
                     trend = 'Sideways'
@@ -805,7 +805,7 @@ def analyze():
                     'price_change': price_change,
                     'volatility': volatility,
                     'trend': trend,
-                    'breakout': int(breakout),  # Convert boolean to int
+                    'breakout': int(bool(breakout)),  # Convert boolean to int
                     'rsi': rsi,
                     'macd_trend': macd_data['trend'],
                     'bollinger_position': bollinger_data['position'],
