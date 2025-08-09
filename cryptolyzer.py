@@ -732,29 +732,38 @@ def analyze():
                     score_components.append(0.5)
                     explanation.append('Oversold (RSI < 30)')
                 elif rsi > 70:
-                    score_components.append(-0.3)
-                    explanation.append('Overbought (RSI > 70)')
+                    score_components.append(-0.5)
+                    explanation.append('Overbought (RSI > 70) - potential reversal')
                 
                 if macd_data['trend'] == 'bullish':
                     score_components.append(0.3)
                     explanation.append('Bullish MACD')
+                elif macd_data['trend'] == 'bearish':
+                    score_components.append(-0.4)
+                    explanation.append('Bearish MACD - negative signal')
                 
                 if bollinger_data['position'] < 0.2:
                     score_components.append(0.4)
                     explanation.append('Near support (Bollinger)')
                 elif bollinger_data['position'] > 0.8:
-                    score_components.append(-0.2)
-                    explanation.append('Near resistance (Bollinger)')
+                    score_components.append(-0.4)
+                    explanation.append('Near resistance (Bollinger) - potential reversal')
                 
                 # Volume analysis bonus
                 if volume_analysis.get('volume_trend') == 'high':
                     score_components.append(0.3)
                     explanation.append('High volume activity')
+                elif volume_analysis.get('volume_trend') == 'low':
+                    score_components.append(-0.2)
+                    explanation.append('Low volume activity - weak momentum')
                 
                 # Sentiment bonus
                 if sentiment_data.get('sentiment_score', 0) > 70:
                     score_components.append(0.2)
                     explanation.append('Strong community sentiment')
+                elif sentiment_data.get('sentiment_score', 0) < 30:
+                    score_components.append(-0.2)
+                    explanation.append('Weak community sentiment')
                 
                 # Pattern recognition bonus
                 if patterns:
@@ -765,18 +774,21 @@ def analyze():
                 if ml_prediction is not None and current_price:
                     ml_change = (ml_prediction - current_price) / current_price
                     # weight scaled by confidence (0..1)
-                    weight = 0.3 * max(0.2, min(1.0, float(confidence or 0)))
+                    weight = 0.5 * max(0.2, min(1.0, float(confidence or 0)))
                     if ml_change > 0:
                         score_components.append(weight)
                         explanation.append(f'ML predicts UP {ml_change*100:.1f}% (conf {(confidence or 0)*100:.0f}%)')
                     else:
-                        score_components.append(-weight)
+                        score_components.append(-weight * 1.2)  # Slightly higher penalty for bearish ML
                         explanation.append(f'ML predicts DOWN {abs(ml_change)*100:.1f}% (conf {(confidence or 0)*100:.0f}%)')
                 
                 # Risk adjustment
                 if risk_metrics.get('risk_level') == 'high':
-                    score_components.append(-0.3)
+                    score_components.append(-0.4)
                     explanation.append('High risk - proceed with caution')
+                elif risk_metrics.get('risk_level') == 'medium':
+                    score_components.append(-0.1)
+                    explanation.append('Medium risk level')
                 
                 # Calculate final score
                 base_score = sum(score_components)
@@ -789,8 +801,11 @@ def analyze():
                     base_score += 0.4
                     explanation.append('Uptrend detected')
                 elif trend == 'Strong Downtrend':
-                    base_score -= 0.5
+                    base_score -= 0.8
                     explanation.append('Strong downtrend - avoid')
+                elif trend == 'Downtrend':
+                    base_score -= 0.4
+                    explanation.append('Downtrend detected')
                 
                 if breakout:
                     base_score += 0.6
@@ -798,9 +813,11 @@ def analyze():
                 
                 # Price momentum analysis
                 if price_change > 0.15:
+                    base_score += 0.3
                     explanation.append('Strong positive momentum')
                 elif price_change < -0.15:
-                    explanation.append('Significant decline - potential reversal')
+                    base_score -= 0.4
+                    explanation.append('Significant decline - negative momentum')
                 
                 if not explanation:
                     explanation = ['No strong signals detected']
@@ -838,17 +855,35 @@ def analyze():
                 print(f"Error analyzing {coin['name']}: {str(e)}")
                 continue
 
-        # Normalize scores
+        # Calculate absolute opportunity scores (not relative normalization)
         results = []
         if coin_results:
-            min_score = min(raw_scores)
-            max_score = max(raw_scores)
             for c in coin_results:
-                if max_score == min_score:
-                    norm_score = 100
+                raw_score = c['raw_score']
+                
+                # Convert raw score to absolute opportunity score (0-100)
+                # Raw scores typically range from -3 to +3 based on the improved scoring system
+                # Map this to 0-100 scale with better distribution
+                if raw_score >= 2.0:
+                    opportunity_score = 95  # Excellent opportunity
+                elif raw_score >= 1.5:
+                    opportunity_score = 85
+                elif raw_score >= 1.0:
+                    opportunity_score = 75
+                elif raw_score >= 0.5:
+                    opportunity_score = 65
+                elif raw_score >= 0.0:
+                    opportunity_score = 50
+                elif raw_score >= -0.5:
+                    opportunity_score = 35
+                elif raw_score >= -1.0:
+                    opportunity_score = 20
+                elif raw_score >= -1.5:
+                    opportunity_score = 10
                 else:
-                    norm_score = int(round((c['raw_score'] - min_score) / (max_score - min_score) * 100))
-                c['opportunity_score'] = norm_score
+                    opportunity_score = 5  # Very poor opportunity
+                
+                c['opportunity_score'] = opportunity_score
                 del c['raw_score']
                 results.append(c)
         
