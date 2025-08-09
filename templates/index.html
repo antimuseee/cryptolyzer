@@ -784,12 +784,12 @@ function generateDetailedAnalysisHTML(analysis) {
                         <h6 class="mb-0"><i class="bi bi-people"></i> Sentiment Analysis</h6>
                     </div>
                     <div class="card-body">
-                        <p><strong>Sentiment Score:</strong> ${analysis.sentiment.sentiment_score?.toFixed(1) || 'N/A'}/100</p>
-                        <p><strong>Reddit Subscribers:</strong> ${analysis.sentiment.reddit_subscribers?.toLocaleString() || 'N/A'}</p>
-                        <p><strong>Twitter Followers:</strong> ${analysis.sentiment.twitter_followers?.toLocaleString() || 'N/A'}</p>
-                        <p><strong>Telegram Users:</strong> ${analysis.sentiment.telegram_channel_user_count?.toLocaleString() || 'N/A'}</p>
-                        <p><strong>Community Score:</strong> ${analysis.sentiment.community_score?.toFixed(1) || 'N/A'}/100</p>
-                        <p><strong>Developer Score:</strong> ${analysis.sentiment.developer_score?.toFixed(1) || 'N/A'}/100</p>
+                        <p><strong>Sentiment Score:</strong> ${analysis.sentiment?.sentiment_score?.toFixed(1) ?? 'N/A'}/100</p>
+                        <p><strong>Reddit Subscribers:</strong> ${analysis.sentiment?.reddit_subscribers?.toLocaleString?.() ?? 'N/A'}</p>
+                        <p><strong>Twitter Followers:</strong> ${analysis.sentiment?.twitter_followers?.toLocaleString?.() ?? 'N/A'}</p>
+                        <p><strong>Telegram Users:</strong> ${analysis.sentiment?.telegram_channel_user_count?.toLocaleString?.() ?? 'N/A'}</p>
+                        <p><strong>Community Score:</strong> ${analysis.sentiment?.community_score?.toFixed?.(1) ?? 'N/A'}/100</p>
+                        <p><strong>Developer Score:</strong> ${analysis.sentiment?.developer_score?.toFixed?.(1) ?? 'N/A'}/100</p>
                     </div>
                 </div>
             </div>
