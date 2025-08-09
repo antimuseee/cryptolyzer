@@ -718,11 +718,13 @@ def analyze():
                 explanation = []
                 score_components = []
                 
-                # Risk-adjusted return
+                # Risk-adjusted return (capped to prevent inflation)
                 if volatility > 0:
                     risk_adjusted = price_change / volatility
-                    score_components.append(risk_adjusted)
-                    explanation.append(f'Risk-adjusted return: {risk_adjusted:.2f}')
+                    # Cap risk-adjusted return to prevent score inflation
+                    capped_risk_adjusted = max(-1.0, min(1.0, risk_adjusted))
+                    score_components.append(capped_risk_adjusted)
+                    explanation.append(f'Risk-adjusted return: {capped_risk_adjusted:.2f} (capped)')
                 else:
                     risk_adjusted = 0
                     explanation.append('Low volatility - stable price')
@@ -862,29 +864,28 @@ def analyze():
                 raw_score = c['raw_score']
                 
                 # Convert raw score to absolute opportunity score (0-100)
-                # Raw scores typically range from -3 to +3 based on the improved scoring system
+                # Raw scores now range from -2 to +2 due to capping
                 # Map this to 0-100 scale with better distribution
-                if raw_score >= 2.0:
-                    opportunity_score = 95  # Excellent opportunity
-                elif raw_score >= 1.5:
-                    opportunity_score = 85
+                if raw_score >= 1.5:
+                    opportunity_score = 90  # Excellent opportunity
                 elif raw_score >= 1.0:
-                    opportunity_score = 75
+                    opportunity_score = 80
                 elif raw_score >= 0.5:
-                    opportunity_score = 65
+                    opportunity_score = 70
                 elif raw_score >= 0.0:
-                    opportunity_score = 50
+                    opportunity_score = 60
                 elif raw_score >= -0.5:
-                    opportunity_score = 35
+                    opportunity_score = 45
                 elif raw_score >= -1.0:
-                    opportunity_score = 20
+                    opportunity_score = 30
                 elif raw_score >= -1.5:
-                    opportunity_score = 10
+                    opportunity_score = 15
                 else:
                     opportunity_score = 5  # Very poor opportunity
                 
                 c['opportunity_score'] = opportunity_score
-                del c['raw_score']
+                # Keep raw_score for debugging (remove this later)
+                c['debug_raw_score'] = raw_score
                 results.append(c)
         
         # Enhanced sorting: opportunity score, risk level, volume trend, sentiment
