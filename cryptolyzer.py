@@ -673,9 +673,10 @@ def analyze():
                 patterns = detect_candlestick_patterns(price_data)
                 support_resistance = detect_support_resistance(price_data)
                 
-                # Machine Learning Prediction (disabled for bulk by default to prevent timeouts)
+                # Machine Learning Prediction
+                # To keep performance reasonable, compute for a small subset even when bulk disabled
                 ml_prediction, confidence = (None, 0)
-                if ENABLE_ML_FOR_BULK:
+                if ENABLE_ML_FOR_BULK or idx < 15:
                     try:
                         ml_prediction, confidence = predict_price_ml(df)
                     except Exception as e:
@@ -760,10 +761,17 @@ def analyze():
                     score_components.append(0.4)
                     explanation.append(f'Pattern detected: {", ".join(patterns)}')
                 
-                # ML prediction bonus
-                if ml_prediction is not None:
-                    score_components.append(0.3)
-                    explanation.append(f'ML predicts {ml_prediction:.2f} with confidence {confidence:.2f}')
+                # ML prediction directional weighting
+                if ml_prediction is not None and current_price:
+                    ml_change = (ml_prediction - current_price) / current_price
+                    # weight scaled by confidence (0..1)
+                    weight = 0.3 * max(0.2, min(1.0, float(confidence or 0)))
+                    if ml_change > 0:
+                        score_components.append(weight)
+                        explanation.append(f'ML predicts UP {ml_change*100:.1f}% (conf {(confidence or 0)*100:.0f}%)')
+                    else:
+                        score_components.append(-weight)
+                        explanation.append(f'ML predicts DOWN {abs(ml_change)*100:.1f}% (conf {(confidence or 0)*100:.0f}%)')
                 
                 # Risk adjustment
                 if risk_metrics.get('risk_level') == 'high':
