@@ -792,8 +792,52 @@ def analyze():
                     score_components.append(-0.1)
                     explanation.append('Medium risk level')
                 
-                # Calculate final score
+                # Calculate final score with additional granularity
                 base_score = sum(score_components)
+                
+                # Add small granular adjustments based on specific conditions
+                # This creates more differentiation between similar coins
+                
+                # RSI granularity (small adjustments for specific ranges)
+                if 25 <= rsi <= 35:  # Near oversold but not extreme
+                    base_score += 0.1
+                elif 65 <= rsi <= 75:  # Near overbought but not extreme
+                    base_score -= 0.1
+                
+                # MACD histogram granularity
+                if macd_data.get('histogram', 0) > 0:
+                    base_score += 0.05  # Small bonus for positive histogram
+                elif macd_data.get('histogram', 0) < 0:
+                    base_score -= 0.05  # Small penalty for negative histogram
+                
+                # Bollinger position granularity
+                bb_pos = bollinger_data.get('position', 0.5)
+                if 0.1 <= bb_pos <= 0.3:  # Near support
+                    base_score += 0.1
+                elif 0.7 <= bb_pos <= 0.9:  # Near resistance
+                    base_score -= 0.1
+                
+                # Volume ratio granularity
+                volume_ratio = volume_analysis.get('volume_ratio', 1.0)
+                if volume_ratio > 2.0:
+                    base_score += 0.15  # Very high volume
+                elif volume_ratio > 1.5:
+                    base_score += 0.1   # High volume
+                elif volume_ratio < 0.5:
+                    base_score -= 0.1   # Low volume
+                
+                # Sentiment granularity
+                sentiment = sentiment_data.get('sentiment_score', 50)
+                if sentiment > 80:
+                    base_score += 0.1
+                elif sentiment < 20:
+                    base_score -= 0.1
+                
+                # Price change granularity
+                if 0.05 <= price_change <= 0.10:
+                    base_score += 0.05  # Moderate positive change
+                elif -0.10 <= price_change <= -0.05:
+                    base_score -= 0.05  # Moderate negative change
                 
                 # Trend and breakout bonuses
                 if trend == 'Strong Uptrend':
@@ -863,25 +907,21 @@ def analyze():
             for c in coin_results:
                 raw_score = c['raw_score']
                 
-                # Convert raw score to absolute opportunity score (0-100)
-                # Raw scores now range from -2 to +2 due to capping
-                # Map this to 0-100 scale with better distribution
-                if raw_score >= 1.5:
-                    opportunity_score = 90  # Excellent opportunity
-                elif raw_score >= 1.0:
-                    opportunity_score = 80
-                elif raw_score >= 0.5:
-                    opportunity_score = 70
-                elif raw_score >= 0.0:
-                    opportunity_score = 60
-                elif raw_score >= -0.5:
-                    opportunity_score = 45
-                elif raw_score >= -1.0:
-                    opportunity_score = 30
-                elif raw_score >= -1.5:
-                    opportunity_score = 15
+                # Convert raw score to continuous opportunity score (0-100)
+                # Raw scores range from -2 to +2 due to capping
+                # Use continuous mapping for more granular scores
+                
+                # Map raw score range (-2 to +2) to opportunity score range (5 to 95)
+                # This creates more granular, diverse scores
+                if raw_score >= 2.0:
+                    opportunity_score = 95  # Maximum score
+                elif raw_score <= -2.0:
+                    opportunity_score = 5   # Minimum score
                 else:
-                    opportunity_score = 5  # Very poor opportunity
+                    # Continuous mapping: (-2, +2) -> (5, 95)
+                    # Formula: 5 + (raw_score + 2) * (95 - 5) / 4
+                    opportunity_score = 5 + (raw_score + 2) * 90 / 4
+                    opportunity_score = round(opportunity_score, 1)  # Round to 1 decimal place
                 
                 c['opportunity_score'] = opportunity_score
                 # Keep raw_score for debugging (remove this later)
