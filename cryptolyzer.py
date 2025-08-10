@@ -8,7 +8,9 @@ import time
 from dotenv import load_dotenv
 import asyncio
 import aiohttp
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import Ridge
+from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
 import warnings
 warnings.filterwarnings('ignore')
@@ -109,7 +111,7 @@ def calculate_moving_averages(prices):
     }
 
 # Volume Analysis
-def get_volume_data(coin_id, days=7):
+def get_volume_data(coin_id, days=30):
     """Get volume data for analysis"""
     url = f"{COINGECKO_API_URL}/coins/{coin_id}/market_chart"
     params = {
@@ -285,24 +287,85 @@ def detect_support_resistance(prices):
 
 # Machine Learning Prediction
 def predict_price_ml(df):
-    """Predict future price using simplified ML approach"""
+    """Predict future price using enhanced ML approach with better features and model"""
     try:
-        if len(df) < 20:  # Reduced minimum data requirement
+        if len(df) < 50:  # Increased minimum data requirement for better training
             return None, 0
         
-        # Simple features to avoid memory issues
+        # Enhanced feature engineering
         df['returns'] = df['price'].pct_change()
+        df['returns_2'] = df['returns'].shift(1)  # Previous day's return
+        df['returns_3'] = df['returns'].shift(2)  # Two days ago return
+        
+        # Moving averages
         df['ma_7'] = df['price'].rolling(window=7).mean()
+        df['ma_14'] = df['price'].rolling(window=14).mean()
+        df['ma_21'] = df['price'].rolling(window=21).mean()
+        
+        # Price momentum features
+        df['price_momentum_1d'] = df['price'] / df['price'].shift(1) - 1
+        df['price_momentum_3d'] = df['price'] / df['price'].shift(3) - 1
+        df['price_momentum_7d'] = df['price'] / df['price'].shift(7) - 1
+        
+        # Volatility features
+        df['volatility_7d'] = df['returns'].rolling(window=7).std()
+        df['volatility_14d'] = df['returns'].rolling(window=14).std()
+        
+        # Technical indicators as features
+        # RSI
+        delta = df['price'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        df['rsi'] = 100 - (100 / (1 + rs))
+        
+        # MACD features
+        ema_12 = df['price'].ewm(span=12).mean()
+        ema_26 = df['price'].ewm(span=26).mean()
+        df['macd'] = ema_12 - ema_26
+        df['macd_signal'] = df['macd'].ewm(span=9).mean()
+        df['macd_histogram'] = df['macd'] - df['macd_signal']
+        
+        # Bollinger Bands features
+        df['bb_middle'] = df['price'].rolling(window=20).mean()
+        bb_std = df['price'].rolling(window=20).std()
+        df['bb_upper'] = df['bb_middle'] + (bb_std * 2)
+        df['bb_lower'] = df['bb_middle'] - (bb_std * 2)
+        df['bb_position'] = (df['price'] - df['bb_lower']) / (df['bb_upper'] - df['bb_lower'])
+        
+        # Support/Resistance features
+        df['high_20'] = df['price'].rolling(window=20).max()
+        df['low_20'] = df['price'].rolling(window=20).min()
+        df['support_distance'] = (df['price'] - df['low_20']) / df['price']
+        df['resistance_distance'] = (df['high_20'] - df['price']) / df['price']
+        
+        # Trend features
+        df['trend_7d'] = (df['ma_7'] - df['ma_7'].shift(7)) / df['ma_7'].shift(7)
+        df['trend_14d'] = (df['ma_14'] - df['ma_14'].shift(14)) / df['ma_14'].shift(14)
         
         # Remove NaN values
         df = df.dropna()
         
-        if len(df) < 10:  # Further reduced requirement
+        if len(df) < 30:  # Need sufficient data after feature engineering
             return None, 0
         
-        # Use only 2 features to reduce complexity
-        features = ['returns', 'ma_7']
-        X = df[features].values[:-1]  # All but last row
+        # Enhanced feature set
+        features = [
+            'returns', 'returns_2', 'returns_3',
+            'ma_7', 'ma_14', 'ma_21',
+            'price_momentum_1d', 'price_momentum_3d', 'price_momentum_7d',
+            'volatility_7d', 'volatility_14d',
+            'rsi', 'macd', 'macd_signal', 'macd_histogram',
+            'bb_position', 'support_distance', 'resistance_distance',
+            'trend_7d', 'trend_14d'
+        ]
+        
+        # Ensure all features exist
+        available_features = [f for f in features if f in df.columns]
+        if len(available_features) < 10:  # Need minimum features
+            return None, 0
+        
+        X = df[available_features].values[:-1]  # All but last row
         y = df['price'].values[1:]    # All but first row
         
         # Ensure X and y have same length
@@ -310,24 +373,83 @@ def predict_price_ml(df):
         X = X[:min_len]
         y = y[:min_len]
         
-        if len(X) < 5:  # Very minimal requirement
+        if len(X) < 20:  # Need sufficient training data
             return None, 0
         
-        # Use simpler model with fewer estimators
-        model = RandomForestRegressor(n_estimators=10, random_state=42, max_depth=5)
-        model.fit(X, y)
+        # Enhanced model with better hyperparameters
+        import numpy as np
         
-        # Predict next price
-        last_features = df[features].iloc[-1].values.reshape(1, -1)
-        prediction = model.predict(last_features)[0]
+        # Ensemble of models for better accuracy
+        models = {
+            'rf': RandomForestRegressor(
+                n_estimators=50, 
+                max_depth=8, 
+                min_samples_split=5,
+                min_samples_leaf=2,
+                random_state=42
+            ),
+            'gb': GradientBoostingRegressor(
+                n_estimators=30,
+                max_depth=6,
+                learning_rate=0.1,
+                random_state=42
+            ),
+            'ridge': Ridge(alpha=1.0, random_state=42)
+        }
         
-        # Calculate confidence based on model performance
-        confidence = min(0.8, model.score(X, y) + 0.3)
+        # Train models and get predictions
+        predictions = []
+        confidences = []
         
-        return prediction, confidence
+        for name, model in models.items():
+            try:
+                # Cross-validation for confidence estimation
+                cv_scores = cross_val_score(model, X, y, cv=3, scoring='r2')
+                avg_cv_score = np.mean(cv_scores)
+                
+                # Train model on full dataset
+                model.fit(X, y)
+                
+                # Predict next price
+                last_features = df[available_features].iloc[-1].values.reshape(1, -1)
+                pred = model.predict(last_features)[0]
+                
+                predictions.append(pred)
+                confidences.append(max(0.1, min(0.9, avg_cv_score + 0.3)))  # Clamp confidence
+                
+            except Exception as e:
+                print(f"Model {name} failed: {e}")
+                continue
+        
+        if not predictions:
+            return None, 0
+        
+        # Ensemble prediction (weighted average by confidence)
+        if len(predictions) > 1:
+            # Weight by confidence
+            weights = np.array(confidences)
+            weights = weights / np.sum(weights)  # Normalize weights
+            ensemble_prediction = np.average(predictions, weights=weights)
+            
+            # Overall confidence is average of individual confidences
+            overall_confidence = np.mean(confidences)
+        else:
+            ensemble_prediction = predictions[0]
+            overall_confidence = confidences[0]
+        
+        # Apply confidence threshold - only return predictions above 0.4 confidence
+        if overall_confidence < 0.4:
+            return None, 0
+        
+        # Sanity check: prediction should be reasonable (within 50% of current price)
+        current_price = df['price'].iloc[-1]
+        if ensemble_prediction < current_price * 0.5 or ensemble_prediction > current_price * 1.5:
+            return None, 0
+        
+        return ensemble_prediction, overall_confidence
         
     except Exception as e:
-        print(f"ML prediction error: {e}")
+        print(f"Enhanced ML prediction error: {e}")
         return None, 0
 
 # Risk Management
@@ -392,7 +514,7 @@ async def fetch_coin_data_async(coin_ids):
 async def fetch_single_coin_data(session, coin_id):
     """Fetch data for a single coin"""
     url = f"{COINGECKO_API_URL}/coins/{coin_id}/market_chart"
-    params = {'vs_currency': 'usd', 'days': 7}
+    params = {'vs_currency': 'usd', 'days': 30}
     headers = {}
     if COINGECKO_API_KEY:
         headers['X-CG-API-Key'] = COINGECKO_API_KEY
@@ -500,7 +622,7 @@ def get_fallback_coins():
         }
     ]
 
-def get_price_history(coin_id, days=7):
+def get_price_history(coin_id, days=30):
     """Get price history for a specific coin, with API key if available"""
     url = f"{COINGECKO_API_URL}/coins/{coin_id}/market_chart"
     params = {
@@ -538,7 +660,7 @@ def get_price_history(coin_id, days=7):
         print(f"[CoinGecko] Unexpected error for {coin_id}: {str(e)} - using fallback")
         return get_fallback_price_history(coin_id, days)
 
-def get_fallback_price_history(coin_id, days=7):
+def get_fallback_price_history(coin_id, days=30):
     """Return fallback price history when API is unavailable"""
     print(f"[CoinGecko] Using fallback price history for {coin_id}")
     current_time = int(time.time() * 1000)
@@ -772,17 +894,30 @@ def analyze():
                     score_components.append(0.4)
                     explanation.append(f'Pattern detected: {", ".join(patterns)}')
                 
-                # ML prediction directional weighting
+                # Enhanced ML prediction directional weighting with confidence thresholds
                 if ml_prediction is not None and current_price:
                     ml_change = (ml_prediction - current_price) / current_price
-                    # weight scaled by confidence (0..1)
-                    weight = 0.5 * max(0.2, min(1.0, float(confidence or 0)))
-                    if ml_change > 0:
-                        score_components.append(weight)
-                        explanation.append(f'ML predicts UP {ml_change*100:.1f}% (conf {(confidence or 0)*100:.0f}%)')
-                    else:
-                        score_components.append(-weight * 1.2)  # Slightly higher penalty for bearish ML
-                        explanation.append(f'ML predicts DOWN {abs(ml_change)*100:.1f}% (conf {(confidence or 0)*100:.0f}%)')
+                    confidence_value = float(confidence or 0)
+                    
+                    # Only use ML predictions with high confidence (>0.5) and reasonable change magnitude
+                    if confidence_value > 0.5 and abs(ml_change) > 0.02:  # 2% minimum change threshold
+                        # Weight scaled by confidence and change magnitude
+                        weight = 0.6 * confidence_value * min(abs(ml_change) * 10, 1.0)  # Cap weight at 0.6
+                        
+                        if ml_change > 0:
+                            score_components.append(weight)
+                            explanation.append(f'ML predicts UP {ml_change*100:.1f}% (conf {confidence_value*100:.0f}%)')
+                        else:
+                            score_components.append(-weight * 1.1)  # Slightly higher penalty for bearish ML
+                            explanation.append(f'ML predicts DOWN {abs(ml_change)*100:.1f}% (conf {confidence_value*100:.0f}%)')
+                    elif confidence_value > 0.3:  # Medium confidence predictions get smaller weight
+                        weight = 0.2 * confidence_value
+                        if ml_change > 0:
+                            score_components.append(weight)
+                            explanation.append(f'ML weakly predicts UP {ml_change*100:.1f}% (conf {confidence_value*100:.0f}%)')
+                        else:
+                            score_components.append(-weight)
+                            explanation.append(f'ML weakly predicts DOWN {abs(ml_change)*100:.1f}% (conf {confidence_value*100:.0f}%)')
                 
                 # Risk adjustment
                 if risk_metrics.get('risk_level') == 'high':

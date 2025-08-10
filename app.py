@@ -203,7 +203,7 @@ def analyze():
 @app.route('/price_history')
 def price_history():
     coin_id = request.args.get('coin_id')
-    days = request.args.get('days', 7)
+    days = request.args.get('days', 30)
     if not coin_id:
         return jsonify({'status': 'error', 'message': 'Missing coin_id'}), 400
     
